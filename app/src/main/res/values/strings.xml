@@ -1,0 +1,9 @@
+<resources>
+    <string name="app_name">Readover</string>
+    <string name="tab_library">Kitaplık</string>
+    <string name="tab_recent">Son Okunanlar</string>
+    <string name="tab_bookmarks">Yer İmleri &amp; Notlar</string>
+    <string name="tab_stats">İstatistikler</string>
+    <string name="action_open_file">Dosya Aç</string>
+    <string name="search_hint">Kitap, yazar veya etiket ara…</string>
+</resources>

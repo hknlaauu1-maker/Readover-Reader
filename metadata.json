@@ -1,0 +1,6 @@
+{
+  "name": "Readover",
+  "description": "Readover - Güçlü ve Modern Kitap & Belge Okuyucu (EPUB, PDF, MOBI, TXT, FB2)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
