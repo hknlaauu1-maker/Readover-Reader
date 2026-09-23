@@ -1341,14 +1341,14 @@ fun OnlineAudiobookSearchView(
     var searchInput by remember { mutableStateOf(viewModel.onlineSearchQuery) }
 
     val searchPlaceholder = when (currentLanguage) {
-        AppLanguage.TURKISH -> "Tüm kaynaklarda sesli kitap ara... (Örn: war and peace)"
-        AppLanguage.ENGLISH -> "Search audiobooks... (e.g. war and peace)"
-        AppLanguage.RUSSIAN -> "Искать аудиокниги..."
-        AppLanguage.GERMAN -> "Hörbücher suchen..."
-        AppLanguage.FRENCH -> "Rechercher des livres audio..."
-        AppLanguage.SPANISH -> "Buscar audiolibros..."
-        AppLanguage.ITALIAN -> "Cerca audiolibri..."
-        AppLanguage.ARABIC -> "البحث عن الكتب الصوتية..."
+        AppLanguage.TURKISH -> "Sesli kitap veya yazar ara..."
+        AppLanguage.ENGLISH -> "Search audiobook or author..."
+        AppLanguage.RUSSIAN -> "Поиск аудиокниги..."
+        AppLanguage.GERMAN -> "Hörbuch suchen..."
+        AppLanguage.FRENCH -> "Rechercher un livre audio..."
+        AppLanguage.SPANISH -> "Buscar audiolibro..."
+        AppLanguage.ITALIAN -> "Cerca audiolibro..."
+        AppLanguage.ARABIC -> "البحث عن كتاب صوتi..."
         AppLanguage.JAPANESE -> "オーディオブックを検索..."
         AppLanguage.INDONESIAN -> "Cari buku audio..."
         AppLanguage.CHINESE -> "搜索有声书..."
@@ -1469,7 +1469,7 @@ fun OnlineAudiobookSearchView(
                 OutlinedTextField(
                     value = searchInput,
                     onValueChange = { searchInput = it },
-                    placeholder = { Text(searchPlaceholder, fontSize = 13.sp) },
+                    placeholder = { Text(searchPlaceholder, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),

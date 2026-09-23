@@ -214,207 +214,74 @@ fun OpenLibraryDialog(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
-                    // Search & Action Header
-                    Card(
+                    // Search & Action Header (Single Row Layout)
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            // Search input
-                            OutlinedTextField(
-                                value = searchInput,
-                                onValueChange = {
-                                    searchInput = it
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .testTag("open_library_search_input"),
-                                placeholder = {
-                                    val placeholderText = when (selectedLanguage) {
-                                        AppLanguage.TURKISH -> "İnternet Archive, Gutenberg veya yazar ara..."
-                                        AppLanguage.ENGLISH -> "Search Internet Archive, Gutenberg or author..."
-                                        AppLanguage.RUSSIAN -> "Поиск в Gutenberg, Интернет-архиве или по автору..."
-                                        AppLanguage.GERMAN -> "Suche in Gutenberg, Internet Archive oder Autor..."
-                                        AppLanguage.FRENCH -> "Rechercher dans Gutenberg, Internet Archive ou auteur..."
-                                        AppLanguage.SPANISH -> "Buscar en Gutenberg, Internet Archive o autor..."
-                                        AppLanguage.ITALIAN -> "Cerca in Gutenberg, Internet Archive o per autore..."
-                                        AppLanguage.ARABIC -> "البحث في غوتنبرغ، أرشيف الإنترنت أو المؤلف..."
-                                        AppLanguage.JAPANESE -> "Gutenberg、インターネットアーカイブ、著者などを検索..."
-                                        AppLanguage.INDONESIAN -> "Cari di Gutenberg, Internet Archive, atau penulis..."
-                                        AppLanguage.CHINESE -> "搜索 Gutenberg、网络档案馆或作者..."
-                                    }
-                                    Text(placeholderText, fontSize = 13.sp)
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                },
-                                trailingIcon = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (searchInput.isNotBlank()) {
-                                            IconButton(
-                                                onClick = {
-                                                    searchInput = ""
-                                                    viewModel.searchOpenLibrary("")
-                                                }
-                                            ) {
-                                                val clearDesc = when (selectedLanguage) {
-                                                    AppLanguage.TURKISH -> "Temizle"
-                                                    AppLanguage.ENGLISH -> "Clear"
-                                                    AppLanguage.RUSSIAN -> "Очистить"
-                                                    AppLanguage.GERMAN -> "Löschen"
-                                                    AppLanguage.FRENCH -> "Effacer"
-                                                    AppLanguage.SPANISH -> "Limpiar"
-                                                    AppLanguage.ITALIAN -> "Cancella"
-                                                    AppLanguage.ARABIC -> "مسح"
-                                                    AppLanguage.JAPANESE -> "クリア"
-                                                    AppLanguage.INDONESIAN -> "Bersihkan"
-                                                    AppLanguage.CHINESE -> "清除"
-                                                }
-                                                Icon(Icons.Default.Clear, contentDescription = clearDesc)
-                                            }
-                                        }
-                                        Button(
-                                            onClick = {
-                                                viewModel.searchOpenLibrary(searchInput)
-                                            },
-                                            modifier = Modifier
-                                                .padding(end = 4.dp)
-                                                .testTag("open_library_search_btn"),
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                            shape = RoundedCornerShape(10.dp)
-                                        ) {
-                                            Text(appString("search"), fontSize = 13.sp)
-                                        }
-                                    }
-                                },
-                                singleLine = true,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Sources Filter Row
-                            val servicesLabel = when (selectedLanguage) {
-                                AppLanguage.TURKISH -> "Açık Kaynak Servisleri:"
-                                AppLanguage.ENGLISH -> "Open Source Services:"
-                                AppLanguage.RUSSIAN -> "Сервисы Open Source:"
-                                AppLanguage.GERMAN -> "Open-Source-Dienste:"
-                                AppLanguage.FRENCH -> "Services Open Source:"
-                                AppLanguage.SPANISH -> "Servicios de Código Abierto:"
-                                AppLanguage.ITALIAN -> "Servizi Open Source:"
-                                AppLanguage.ARABIC -> "خدمات المصدر المفتوح:"
-                                AppLanguage.JAPANESE -> "オープンソースサービス:"
-                                AppLanguage.INDONESIAN -> "Layanan Sumber Terbuka:"
-                                AppLanguage.CHINESE -> "开源服务:"
-                            }
-                            Text(
-                                text = servicesLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                items(sources) { src ->
-                                    val isSel = activeSource == src
-                                    FilterChip(
-                                        selected = isSel,
-                                        onClick = { activeSource = src },
-                                        label = { Text(if (src == "Tümü") getLocalizedAll(selectedLanguage) else src, fontSize = 11.sp) },
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                        )
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            // Quick search keywords
-                            val popularLabel = when (selectedLanguage) {
-                                AppLanguage.TURKISH -> "Popüler Aramalar:"
-                                AppLanguage.ENGLISH -> "Popular Searches:"
-                                AppLanguage.RUSSIAN -> "Популярные запросы:"
-                                AppLanguage.GERMAN -> "Beliebte Suchen:"
-                                AppLanguage.FRENCH -> "Recherches Populaires:"
-                                AppLanguage.SPANISH -> "Búsquedas Populares:"
-                                AppLanguage.ITALIAN -> "Ricerche Popolari:"
-                                AppLanguage.ARABIC -> "الأكثر بحثاً:"
-                                AppLanguage.JAPANESE -> "人気の検索:"
-                                AppLanguage.INDONESIAN -> "Pencarian Populer:"
-                                AppLanguage.CHINESE -> "热门搜索:"
-                            }
-                            Text(
-                                text = popularLabel,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                items(quickPicks) { pick ->
-                                    SuggestionChip(
-                                        onClick = {
-                                            searchInput = pick
-                                            viewModel.searchOpenLibrary(pick, selectedLanguage.code)
-                                        },
-                                        label = { Text(pick, fontSize = 11.sp) },
-                                        shape = RoundedCornerShape(8.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Language Selector Bar
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        items(languages) { lang ->
-                            val isLangSel = selectedLanguage == lang
-                            FilterChip(
-                                selected = isLangSel,
-                                onClick = {
-                                    selectedLanguage = lang
-                                    I18nManager.setLanguage(lang)
-                                    viewModel.searchOpenLibrary(searchInput, lang.code)
-                                },
-                                label = { Text("${lang.flag} ${lang.nativeName}", fontSize = 11.sp) },
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                        }
-                    }
-
-                    // Category Filter Tabs
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(categories) { category ->
-                            val isSelected = activeCategory == category
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { activeCategory = category },
-                                label = { Text(getLocalizedCategory(category, selectedLanguage), fontSize = 12.sp) },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        OutlinedTextField(
+                            value = searchInput,
+                            onValueChange = { searchInput = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("open_library_search_input"),
+                            placeholder = {
+                                val placeholderText = when (selectedLanguage) {
+                                    AppLanguage.TURKISH -> "Eser veya yazar ara..."
+                                    AppLanguage.ENGLISH -> "Search book or author..."
+                                    AppLanguage.RUSSIAN -> "Поиск книги..."
+                                    AppLanguage.GERMAN -> "Buch suchen..."
+                                    AppLanguage.FRENCH -> "Rechercher..."
+                                    AppLanguage.SPANISH -> "Buscar..."
+                                    AppLanguage.ITALIAN -> "Cerca..."
+                                    AppLanguage.ARABIC -> "بحث..."
+                                    AppLanguage.JAPANESE -> "検索..."
+                                    AppLanguage.INDONESIAN -> "Cari..."
+                                    AppLanguage.CHINESE -> "搜索..."
+                                }
+                                Text(
+                                    text = placeholderText,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            },
+                            trailingIcon = {
+                                if (searchInput.isNotBlank()) {
+                                    IconButton(
+                                        onClick = {
+                                            searchInput = ""
+                                            viewModel.searchOpenLibrary("")
+                                        }
+                                    ) {
+                                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        Button(
+                            onClick = {
+                                viewModel.searchOpenLibrary(searchInput)
+                            },
+                            modifier = Modifier.testTag("open_library_search_btn"),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text(
+                                text = appString("search"),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

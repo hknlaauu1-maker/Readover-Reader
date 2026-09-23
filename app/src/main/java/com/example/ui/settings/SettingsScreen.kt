@@ -487,7 +487,7 @@ fun SettingsScreen(
                             Icon(Icons.Default.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Librera Reader Tabanlı Modifikasyon",
+                                text = "Readover Reader Tabanlı Modifikasyon",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -495,7 +495,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Bu uygulama Librera Reader tabanlıdır, Hakan ULU tarafından modifiye edilmiştir ve kaynak kodlarına https://github.com/hknlaauu1-maker/Readover-Reader adresinden ulaşılabilir.",
+                            text = "Bu uygulama Readover Reader tabanlıdır, Hakan ULU tarafından modifiye edilmiştir ve kaynak kodlarına https://github.com/hknlaauu1-maker/Readover-Reader adresinden ulaşılabilir.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -609,7 +609,7 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Sürüm 2.5.0 (Librera Reader Core • Modby Hakan ULU)",
+                            text = "Sürüm 2.5.0 (Readover Core • Modby Hakan ULU)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

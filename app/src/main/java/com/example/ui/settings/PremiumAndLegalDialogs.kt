@@ -226,7 +226,7 @@ fun KvkkAndLegalNoticeDialog(
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Librera Reader open source core modified by Hakan ULU. Source code accessible below:",
+                            text = "Readover Reader open source core modified by Hakan ULU. Source code accessible below:",
                             style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(modifier = Modifier.height(8.dp))
