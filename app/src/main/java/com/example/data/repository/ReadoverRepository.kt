@@ -44,15 +44,8 @@ class ReadoverRepository(
     val favoriteAudiobooks: Flow<List<AudiobookEntity>> = audiobookDao.getFavoriteAudiobooks()
 
     suspend fun checkAndSeedInitialData() = withContext(Dispatchers.IO) {
-        val bookCount = bookDao.getBookCount()
-        if (bookCount == 0) {
-            bookDao.insertBooks(SampleBooks.getInitialBooks())
-        }
-
-        val audioCount = audiobookDao.getAudiobookCount()
-        if (audioCount == 0) {
-            audiobookDao.insertAudiobooks(SampleAudiobooks.getInitialAudiobooks())
-        }
+        bookDao.deleteSampleBooks()
+        audiobookDao.deleteSampleAudiobooks()
     }
 
     // -------------------------------------------------------------

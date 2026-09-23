@@ -47,6 +47,9 @@ interface BookDao {
     @Delete
     suspend fun deleteBook(book: BookEntity)
 
+    @Query("DELETE FROM books WHERE id <= 10 OR author = 'Dünya Klasiği' OR author = 'Antoine de Saint-Exupéry' OR author = 'Fyodor Dostoyevski' OR author = 'Mustafa Kemal Atatürk'")
+    suspend fun deleteSampleBooks()
+
     @Query("SELECT COUNT(*) FROM books")
     suspend fun getBookCount(): Int
 }

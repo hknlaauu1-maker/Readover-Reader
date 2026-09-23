@@ -45,6 +45,9 @@ interface AudiobookDao {
     @Delete
     suspend fun deleteAudiobook(audiobook: AudiobookEntity)
 
+    @Query("DELETE FROM audiobooks WHERE id <= 10 OR author = 'Dünya Klasiği' OR author = 'Antoine de Saint-Exupéry' OR author = 'Fyodor Dostoyevski'")
+    suspend fun deleteSampleAudiobooks()
+
     @Query("SELECT COUNT(*) FROM audiobooks")
     suspend fun getAudiobookCount(): Int
 

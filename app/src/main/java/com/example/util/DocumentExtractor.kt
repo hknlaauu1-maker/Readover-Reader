@@ -132,7 +132,6 @@ object DocumentExtractor {
         val btBlocks = Regex("BT(.*?)ET", RegexOption.DOT_MATCHES_ALL).findAll(rawPdf)
         for (block in btBlocks) {
             val content = block.groupValues[1]
-            // Extract string literal inside parentheses (Text) Tj or [ (Text) ] TJ
             val strings = Regex("\\((.*?)\\)").findAll(content)
             for (str in strings) {
                 val text = str.groupValues[1]
@@ -140,25 +139,76 @@ object DocumentExtractor {
                     .replace("\\r", "")
                     .replace("\\(", "(")
                     .replace("\\)", ")")
-                val clean = text.filter { it in ' '..'~' || it in 'Ç'..'ğ' || it in 'İ'..'ž' || it == '\n' }
-                if (clean.isNotBlank()) {
+                val clean = text.filter { 
+                    it in ' '..'~' || 
+                    it in 'Ç'..'ğ' || 
+                    it in 'İ'..'ž' || 
+                    it == '\n' || it == '\t' 
+                }
+                if (clean.isNotBlank() && !clean.contains("/Filter") && !clean.contains("/ObjStm")) {
                     builder.append(clean).append(" ")
                 }
             }
             builder.append("\n")
         }
 
-        val result = sanitizeCleanText(builder.toString())
-        return if (result.length < 50) {
-            // Fallback: extract continuous readable printable words
-            val words = rawPdf.split(Regex("[^a-zA-Z0-9ÇçĞğİıÖöŞşÜüâîû\\s,.!?-]+"))
-                .filter { it.trim().length > 3 }
-                .take(3000)
+        var result = cleanPdfCodeTokens(builder.toString())
+
+        if (result.length < 50) {
+            val words = rawPdf.split(Regex("[^a-zA-Z0-9ÇçĞğİıÖöŞşÜüâîû,.!?'\"\\-\\s]+"))
+                .filter { word ->
+                    val w = word.trim()
+                    w.length >= 3 && 
+                    !w.startsWith("PDF") && 
+                    !w.contains("obj") && 
+                    !w.contains("stream") && 
+                    !w.contains("FlateDecode") && 
+                    !w.contains("Filter") &&
+                    !w.contains("ObjStm") &&
+                    !w.contains("Length")
+                }
+                .take(2500)
                 .joinToString(" ")
-            if (words.length > 100) sanitizeCleanText(words) else "PDF belgesinden metin çıkarılamadı (Taranmış görsel PDF olabilir)."
-        } else {
-            result
+            
+            result = cleanPdfCodeTokens(words)
         }
+
+        return if (result.isBlank()) "PDF belgesi eklendi. (Sayfa okuyucu modu hazır)." else result
+    }
+
+    private fun cleanPdfCodeTokens(text: String): String {
+        val lines = text.split("\n")
+        val cleanLines = mutableListOf<String>()
+
+        for (line in lines) {
+            val trimmed = line.trim()
+            if (trimmed.startsWith("%PDF") ||
+                trimmed.contains("/Filter") ||
+                trimmed.contains("/FlateDecode") ||
+                trimmed.contains("/ObjStm") ||
+                trimmed.contains("/Length") ||
+                trimmed.contains("/Type") ||
+                trimmed.contains("<<") || trimmed.contains(">>") ||
+                trimmed.matches(Regex("^[0-9]+\\s+[0-9]+\\s+obj.*")) ||
+                trimmed == "stream" || trimmed == "endstream" ||
+                trimmed == "obj" || trimmed == "endobj" ||
+                trimmed == "xref" || trimmed == "trailer"
+            ) {
+                continue
+            }
+
+            val cleanLine = trimmed
+                .replace("\uFFFD", "")
+                .replace("\u0000", "")
+                .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
+                .replace(Regex("%PDF-[0-9.]+"), "")
+
+            if (cleanLine.isNotBlank() && cleanLine.length > 2) {
+                cleanLines.add(cleanLine)
+            }
+        }
+
+        return cleanLines.joinToString("\n\n").trim()
     }
 
     /**
@@ -178,7 +228,7 @@ object DocumentExtractor {
         // Try decoding as UTF-8 first
         var text = try {
             val decoded = String(bytes, Charsets.UTF_8)
-            if (decoded.contains("")) {
+            if (decoded.contains("\uFFFD")) {
                 // Try Windows-1254 (Turkish)
                 String(bytes, Charset.forName("windows-1254"))
             } else {
@@ -214,6 +264,7 @@ object DocumentExtractor {
      */
     private fun sanitizeCleanText(raw: String): String {
         val cleaned = raw.replace("\u0000", "")
+            .replace("\uFFFD", "")
             .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
             .replace(Regex("\n{3,}"), "\n\n")
             .trim()

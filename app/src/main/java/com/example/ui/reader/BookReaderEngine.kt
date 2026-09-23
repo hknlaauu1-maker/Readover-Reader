@@ -42,18 +42,7 @@ object BookReaderEngine {
      * Splits raw book content into paginated text chunks and builds Table of Contents (TOC).
      */
     fun paginate(content: String, charsPerPage: Int = 1100): BookPagination {
-        val cleanContent = content
-            .replace("\u0000", "")
-            .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
-            .let {
-                if (it.contains("<p>") || it.contains("<br") || it.contains("</div>")) {
-                    it.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-                        .replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n\n")
-                        .replace(Regex("<[^>]*>"), "")
-                        .replace("&nbsp;", " ")
-                        .replace("&amp;", "&")
-                } else it
-            }
+        val cleanContent = sanitizeContent(content)
 
         if (cleanContent.isBlank()) {
             return BookPagination(
@@ -104,6 +93,42 @@ object BookReaderEngine {
             pages = finalPages,
             chapters = uniqueChapters
         )
+    }
+
+    private fun sanitizeContent(raw: String): String {
+        var text = raw
+            .replace("\u0000", "")
+            .replace("\uFFFD", "")
+            .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
+
+        if (text.contains("%PDF") || text.contains("/FlateDecode") || text.contains("/ObjStm") || text.contains("<<") || text.contains("stream")) {
+            val lines = text.lines()
+            val filtered = lines.filterNot { line ->
+                val t = line.trim()
+                t.startsWith("%PDF") ||
+                t.contains("/FlateDecode") ||
+                t.contains("/ObjStm") ||
+                t.contains("/Filter") ||
+                t.contains("/Length") ||
+                t.contains("/Type") ||
+                t.contains("<<") || t.contains(">>") ||
+                t.matches(Regex("^[0-9]+\\s+[0-9]+\\s+obj.*")) ||
+                t == "stream" || t == "endstream" ||
+                t == "obj" || t == "endobj" ||
+                t == "xref" || t == "trailer"
+            }
+            text = filtered.joinToString("\n")
+        }
+
+        if (text.contains("<p>") || text.contains("<br") || text.contains("</div>")) {
+            text = text.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+                .replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n\n")
+                .replace(Regex("<[^>]*>"), "")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+        }
+
+        return text.trim()
     }
 
     /**

@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -362,49 +363,59 @@ fun ReaderScreen(
             // Main Reading Page Content
             val scrollState = rememberScrollState()
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-                    .verticalScroll(scrollState)
-            ) {
-                // If TTS is active, show text with sentence highlighting
-                if (ttsController.isPlaying) {
-                    sentences.forEachIndexed { index, sentence ->
-                        val isSpoken = index == ttsController.currentSentenceIndex
+            val isPdfBook = book?.format?.equals("PDF", ignoreCase = true) == true && !book?.fileUri.isNullOrBlank()
+
+            if (isPdfBook && !ttsController.isPlaying) {
+                PdfPageView(
+                    fileUriString = book!!.fileUri!!,
+                    pageIndex = viewModel.currentPageIndex,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 24.dp, vertical = 12.dp)
+                        .verticalScroll(scrollState)
+                ) {
+                    // If TTS is active, show text with sentence highlighting
+                    if (ttsController.isPlaying) {
+                        sentences.forEachIndexed { index, sentence ->
+                            val isSpoken = index == ttsController.currentSentenceIndex
+                            Text(
+                                text = sentence + " ",
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontSize = viewModel.fontSizeSp.sp,
+                                    lineHeight = (viewModel.fontSizeSp * viewModel.lineHeightMultiplier).sp,
+                                    fontFamily = viewModel.selectedFontFamily.composeFont,
+                                    textAlign = viewModel.textAlign,
+                                    color = if (isSpoken) currentTheme.accentColor else currentTheme.textColor,
+                                    fontWeight = if (isSpoken) FontWeight.Bold else FontWeight.Normal
+                                ),
+                                modifier = if (isSpoken) {
+                                    Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(currentTheme.accentColor.copy(alpha = 0.18f))
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                } else Modifier
+                            )
+                        }
+                    } else {
                         Text(
-                            text = sentence + " ",
+                            text = currentPageText,
                             style = MaterialTheme.typography.bodyLarge.copy(
                                 fontSize = viewModel.fontSizeSp.sp,
                                 lineHeight = (viewModel.fontSizeSp * viewModel.lineHeightMultiplier).sp,
                                 fontFamily = viewModel.selectedFontFamily.composeFont,
                                 textAlign = viewModel.textAlign,
-                                color = if (isSpoken) currentTheme.accentColor else currentTheme.textColor,
-                                fontWeight = if (isSpoken) FontWeight.Bold else FontWeight.Normal
+                                color = currentTheme.textColor
                             ),
-                            modifier = if (isSpoken) {
-                                Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(currentTheme.accentColor.copy(alpha = 0.18f))
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            } else Modifier
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
-                } else {
-                    Text(
-                        text = currentPageText,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontSize = viewModel.fontSizeSp.sp,
-                            lineHeight = (viewModel.fontSizeSp * viewModel.lineHeightMultiplier).sp,
-                            fontFamily = viewModel.selectedFontFamily.composeFont,
-                            textAlign = viewModel.textAlign,
-                            color = currentTheme.textColor
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
 
-                Spacer(modifier = Modifier.height(48.dp))
+                    Spacer(modifier = Modifier.height(48.dp))
+                }
             }
 
             // Eye Comfort Blue Light Warm Tint Overlay (reduces eye fatigue)
@@ -1168,4 +1179,60 @@ fun PageProgressRecorderDialog(
             }
         }
     )
+}
+
+@Composable
+fun PdfPageView(
+    fileUriString: String,
+    pageIndex: Int,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var bitmap by remember(fileUriString, pageIndex) { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    LaunchedEffect(fileUriString, pageIndex) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val uri = android.net.Uri.parse(fileUriString)
+                context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
+                    android.graphics.pdf.PdfRenderer(pfd).use { renderer ->
+                        if (pageIndex in 0 until renderer.pageCount) {
+                            renderer.openPage(pageIndex).use { page ->
+                                val width = (page.width * 2.2).toInt().coerceAtLeast(100)
+                                val height = (page.height * 2.2).toInt().coerceAtLeast(100)
+                                val bmp = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+                                val canvas = android.graphics.Canvas(bmp)
+                                canvas.drawColor(android.graphics.Color.WHITE)
+                                page.render(bmp, null, null, android.graphics.pdf.PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                                bitmap = bmp
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("PdfPageView", "Error rendering PDF page: ${e.message}")
+            }
+        }
+    }
+
+    if (bitmap != null) {
+        androidx.compose.foundation.Image(
+            bitmap = bitmap!!.asImageBitmap(),
+            contentDescription = "PDF Sayfa ${pageIndex + 1}",
+            modifier = modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            contentScale = androidx.compose.ui.layout.ContentScale.Fit
+        )
+    } else {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(36.dp)
+            )
+        }
+    }
 }
