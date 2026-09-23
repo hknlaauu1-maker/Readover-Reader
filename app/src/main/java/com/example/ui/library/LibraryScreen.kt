@@ -38,7 +38,7 @@ import com.example.data.model.BookmarkEntity
 import com.example.ui.audio.AudiobookPlayerScreen
 import com.example.ui.audio.AudiobookViewModel
 import com.example.ui.components.AdBannerCard
-import com.example.ui.components.BookCoverCard
+import com.example.ui.components.WoodenBookshelfGrid
 import com.example.ui.components.BookListItem
 import com.example.ui.components.FormatBadge
 import com.example.ui.components.MiniAudioPlayerBar
@@ -269,30 +269,6 @@ fun LibraryScreen(
                         shape = RoundedCornerShape(12.dp)
                     )
                 }
-
-                // Format Filter Chips (Only for Library tab)
-                if (viewModel.selectedTab == 0) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        formats.forEach { format ->
-                            val isSelected = viewModel.selectedFormatFilter == format
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = { viewModel.selectedFormatFilter = format },
-                                label = { Text(format, fontSize = 12.sp) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                )
-                            )
-                        }
-                    }
-                }
             }
         },
         bottomBar = {
@@ -350,6 +326,8 @@ fun LibraryScreen(
                                     arrayOf(
                                         "application/pdf",
                                         "application/epub+zip",
+                                        "application/msword",
+                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                         "text/plain",
                                         "application/octet-stream",
                                         "*/*"
@@ -598,21 +576,12 @@ fun LibraryContent(
     }
 
     if (isGridView) {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp, top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        WoodenBookshelfGrid(
+            books = books,
+            onOpenBook = onOpenBook,
+            onToggleFavorite = onToggleFavorite,
             modifier = Modifier.fillMaxSize()
-        ) {
-            items(books, key = { it.id }) { book ->
-                BookCoverCard(
-                    book = book,
-                    onClick = { onOpenBook(book.id) },
-                    onToggleFavorite = { onToggleFavorite(book) }
-                )
-            }
-        }
+        )
     } else {
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp, top = 8.dp),

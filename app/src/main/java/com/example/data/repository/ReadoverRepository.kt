@@ -128,30 +128,12 @@ class ReadoverRepository(
             "EPUB" -> "EPUB"
             "MOBI" -> "MOBI"
             "FB2" -> "FB2"
+            "DOC", "DOCX" -> "DOCX"
             "HTML", "HTM" -> "HTML"
             else -> "TXT"
         }
 
-        val rawTextBuilder = java.lang.StringBuilder()
-        try {
-            context.contentResolver.openInputStream(uri)?.use { inputStream ->
-                BufferedReader(InputStreamReader(inputStream)).use { reader ->
-                    var line: String? = reader.readLine()
-                    var lineCount = 0
-                    while (line != null && lineCount < 10000) {
-                        rawTextBuilder.append(line).append("\n")
-                        line = reader.readLine()
-                        lineCount++
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            rawTextBuilder.append("Dosya içeriği okunamadı: ${e.localizedMessage}")
-        }
-
-        val textContent = rawTextBuilder.toString().ifBlank {
-            "Belge içeriği: $fileName\n\nBu dosya başarıyla Readover kitaplığına eklendi."
-        }
+        val textContent = com.example.util.DocumentExtractor.extractText(context, uri, fileName)
 
         val estimatedPages = (textContent.length / 1200).coerceAtLeast(1)
 

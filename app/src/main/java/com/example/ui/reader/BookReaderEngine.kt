@@ -42,14 +42,27 @@ object BookReaderEngine {
      * Splits raw book content into paginated text chunks and builds Table of Contents (TOC).
      */
     fun paginate(content: String, charsPerPage: Int = 1100): BookPagination {
-        if (content.isBlank()) {
+        val cleanContent = content
+            .replace("\u0000", "")
+            .replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
+            .let {
+                if (it.contains("<p>") || it.contains("<br") || it.contains("</div>")) {
+                    it.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
+                        .replace(Regex("</p>", RegexOption.IGNORE_CASE), "\n\n")
+                        .replace(Regex("<[^>]*>"), "")
+                        .replace("&nbsp;", " ")
+                        .replace("&amp;", "&")
+                } else it
+            }
+
+        if (cleanContent.isBlank()) {
             return BookPagination(
                 pages = listOf("Bu belgede görüntülenecek metin bulunamadı."),
                 chapters = listOf(ChapterInfo(0, "Giriş", 1))
             )
         }
 
-        val lines = content.lines()
+        val lines = cleanContent.lines()
         val pagesList = mutableListOf<String>()
         val chaptersList = mutableListOf<ChapterInfo>()
 
