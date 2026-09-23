@@ -2,6 +2,7 @@ package com.example.ui.audio
 
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +13,9 @@ import com.example.data.cover.OpenCoverFetcher
 import com.example.data.database.ReadoverDatabase
 import com.example.data.model.AudioBookmarkEntity
 import com.example.data.model.AudiobookEntity
+import com.example.data.audiobook.AudiobookAggregator
+import com.example.data.model.OnlineAudiobookItem
+import com.example.util.i18n.I18nManager
 import com.example.data.repository.ReadoverRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -43,7 +47,13 @@ class AudiobookViewModel(application: Application) : AndroidViewModel(applicatio
     )
 
     var searchQuery by mutableStateOf("")
-    var selectedAudioTab by mutableIntStateOf(0) // 0: Player / Now Playing, 1: Sesli Kitaplık, 2: Favoriler
+    var selectedAudioTab by mutableIntStateOf(0) // 0: Player, 1: Kitaplık, 2: Zaman İmleri, 3: Çevrimiçi Arama
+
+    // Online audiobook search states
+    var onlineSearchQuery by mutableStateOf("")
+    var onlineAudiobooks by mutableStateOf<List<OnlineAudiobookItem>>(emptyList())
+    var isOnlineSearching by mutableStateOf(false)
+    var onlineSearchError by mutableStateOf<String?>(null)
 
     val isPlaying: StateFlow<Boolean> = playerEngine.isPlaying
     val currentAudiobook: StateFlow<AudiobookEntity?> = playerEngine.currentAudiobook
@@ -91,6 +101,9 @@ class AudiobookViewModel(application: Application) : AndroidViewModel(applicatio
                 }
             }
         }
+
+        // Fetch default popular/public domain audiobooks initially
+        searchOnlineAudiobooks("")
     }
 
     fun playAudiobook(audiobook: AudiobookEntity) {
@@ -181,6 +194,77 @@ class AudiobookViewModel(application: Application) : AndroidViewModel(applicatio
             val cover = OpenCoverFetcher.fetchCoverUrl(audiobook.title, audiobook.author)
             if (cover != null) {
                 database.audiobookDao().updateCoverImageUrl(audiobook.id, cover)
+            }
+        }
+    }
+
+    fun searchOnlineAudiobooks(query: String) {
+        onlineSearchQuery = query
+        viewModelScope.launch {
+            isOnlineSearching = true
+            onlineSearchError = null
+            try {
+                val results = AudiobookAggregator.searchAll(query, I18nManager.currentLanguage)
+                onlineAudiobooks = results
+            } catch (e: Exception) {
+                onlineSearchError = e.message ?: "Arama hatası oluştu."
+                Log.e("AudiobookViewModel", "Online audiobook search failed: ${e.message}")
+            } finally {
+                isOnlineSearching = false
+            }
+        }
+    }
+
+    fun playOnlineAudiobook(item: OnlineAudiobookItem, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            isOnlineSearching = true
+            onlineSearchError = null
+            try {
+                val resolvedUrl = when {
+                    item.id.startsWith("archive-") -> {
+                        val identifier = item.id.substringAfter("archive-")
+                        AudiobookAggregator.resolveArchiveAudioUrl(identifier)
+                    }
+                    item.id.startsWith("librivox-") && item.audioUrl.contains("rss") -> {
+                        AudiobookAggregator.resolveLibrivoxRssUrl(item.audioUrl).ifBlank {
+                            "https://librivox.org/rss/${item.id.substringAfter("librivox-")}"
+                        }
+                    }
+                    else -> item.audioUrl
+                }
+
+                if (resolvedUrl.isBlank()) {
+                    onlineSearchError = "Ses dosyası bağlantısı çözülemedi."
+                    return@launch
+                }
+
+                val id = repository.addWebOrYoutubeAudio(
+                    inputUrl = resolvedUrl,
+                    customTitle = item.title,
+                    customAuthor = item.author
+                )
+                
+                val dao = database.audiobookDao()
+                dao.updateCoverImageUrl(id, item.coverImageUrl ?: "https://archive.org/services/img/librivox_audiobook_cover_art")
+                
+                val loaded = repository.getAudiobookByIdSync(id)
+                if (loaded != null) {
+                    val updated = loaded.copy(
+                        narrator = item.narrator,
+                        description = item.description,
+                        category = "Kamu Malı (${item.source})"
+                    )
+                    dao.insertAudiobook(updated)
+                    playAudiobook(updated)
+                }
+
+                selectedAudioTab = 0
+                onComplete()
+            } catch (e: Exception) {
+                Log.e("AudiobookViewModel", "Play online audio failed: ${e.message}")
+                onlineSearchError = "Bağlantı yürütme hatası: ${e.message}"
+            } finally {
+                isOnlineSearching = false
             }
         }
     }

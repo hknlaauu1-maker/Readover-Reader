@@ -15,6 +15,8 @@ import com.example.data.model.BookmarkEntity
 import com.example.data.openlibrary.OpenBookItem
 import com.example.data.openlibrary.OpenLibraryService
 import com.example.data.repository.ReadoverRepository
+import com.example.util.i18n.AppLanguage
+import com.example.util.i18n.I18nManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -55,17 +57,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var downloadingBookIds by mutableStateOf<Set<String>>(emptySet())
     var downloadedBookIds by mutableStateOf<Set<String>>(emptySet())
 
-    fun searchOpenLibrary(query: String) {
+    fun searchOpenLibrary(query: String, langCode: String = I18nManager.currentLanguage.code) {
         openLibrarySearchQuery = query
         viewModelScope.launch {
             isOpenLibrarySearching = true
             try {
-                if (query.isBlank()) {
-                    openLibraryBooks = OpenLibraryService.curatedCatalog
-                } else {
-                    val results = OpenLibraryService.searchOpenBooks(query)
-                    openLibraryBooks = results
-                }
+                val results = OpenLibraryService.searchOpenBooks(query, langCode)
+                openLibraryBooks = results
             } catch (e: Exception) {
                 openLibraryBooks = OpenLibraryService.curatedCatalog
             } finally {

@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,16 +17,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.util.ads.AdManager
+import com.example.util.i18n.AppLanguage
+import com.example.util.i18n.LocalAppLanguage
+import com.example.util.i18n.appString
 
 @Composable
 fun PremiumPurchaseDialog(
@@ -37,6 +35,8 @@ fun PremiumPurchaseDialog(
 ) {
     if (!isOpen) return
     val context = LocalContext.current
+    val currentLang = LocalAppLanguage.current
+    val priceText = if (currentLang == AppLanguage.TURKISH) "25 TL" else "$0.99"
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -52,7 +52,7 @@ fun PremiumPurchaseDialog(
                     modifier = Modifier.size(28.dp)
                 )
                 Text(
-                    text = "Readover Premium",
+                    text = appString("premium_title"),
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                 )
             }
@@ -70,23 +70,23 @@ fun PremiumPurchaseDialog(
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            text = "Ömür Boyu Reklamsız Deneyim",
+                            text = appString("premium_lifetime_title"),
                             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Tek seferlik ödeme ile tüm AdMob/AppLovin banner ve geçiş reklamlarını kalıcı olarak kaldırın.",
+                            text = appString("premium_lifetime_desc"),
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
 
-                FeatureCheckItem(title = "Sıfır Reklam (Banner & Geçiş Reklamları Kapalı)")
-                FeatureCheckItem(title = "Sınırsız Sesli Okuma (TTS) & Hızlı Okuma")
-                FeatureCheckItem(title = "Gelişmiş Açık Kütüphane & Arşiv İndirme")
-                FeatureCheckItem(title = "Özel AMOLED & Orman Teması Erişimi")
-                FeatureCheckItem(title = "Açık Kaynak Geliştirmeyi Destekleme")
+                FeatureCheckItem(title = appString("premium_feature_1"))
+                FeatureCheckItem(title = appString("premium_feature_2"))
+                FeatureCheckItem(title = appString("premium_feature_3"))
+                FeatureCheckItem(title = appString("premium_feature_4"))
+                FeatureCheckItem(title = appString("premium_feature_5"))
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -105,17 +105,17 @@ fun PremiumPurchaseDialog(
                     ) {
                         Column {
                             Text(
-                                text = "Ömür Boyu Lisans",
+                                text = appString("premium_license_type"),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                             )
                             Text(
-                                text = "Abonelik Yok • Tek Seferlik",
+                                text = appString("premium_no_sub"),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Text(
-                            text = "₺49,99",
+                            text = priceText,
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             color = Color(0xFF059669)
                         )
@@ -127,7 +127,11 @@ fun PremiumPurchaseDialog(
             Button(
                 onClick = {
                     AdManager.setPremiumUnlocked(context, true)
-                    Toast.makeText(context, "Tebrikler! Readover Premium başarıyla aktif edildi. Reklamlar kaldırıldı.", Toast.LENGTH_LONG).show()
+                    val msg = if (currentLang == AppLanguage.TURKISH) 
+                        "Tebrikler! Readover Premium aktif edildi. Reklamlar kaldırıldı."
+                    else 
+                        "Congratulations! Readover Premium activated. Ads removed."
+                    Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
                     onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -139,12 +143,12 @@ fun PremiumPurchaseDialog(
             ) {
                 Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Reklamları Kaldır & Satın Al", fontWeight = FontWeight.Bold)
+                Text(appString("premium_btn_purchase"), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Kapat")
+                Text(appString("close"))
             }
         }
     )
@@ -192,7 +196,7 @@ fun KvkkAndLegalNoticeDialog(
                     modifier = Modifier.size(24.dp)
                 )
                 Text(
-                    text = "Yasal Açıklamalar & KVKK / GDPR",
+                    text = appString("legal_title"),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
@@ -205,7 +209,6 @@ fun KvkkAndLegalNoticeDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Librera Attribution & Source Code Link
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
@@ -217,13 +220,13 @@ fun KvkkAndLegalNoticeDialog(
                             Icon(Icons.Default.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Açık Kaynak & Modifikasyon Bildirimi",
+                                text = appString("legal_source_title"),
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Bu uygulama Librera Reader tabanlıdır, Hakan ULU tarafından modifiye edilmiştir ve kaynak kodlarına aşağıdaki adresten ulaşılabilir:",
+                            text = "Librera Reader open source core modified by Hakan ULU. Source code accessible below:",
                             style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -240,7 +243,7 @@ fun KvkkAndLegalNoticeDialog(
                                     } catch (e: Exception) {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText("GitHub Repository", githubUrl))
-                                        Toast.makeText(context, "GitHub adresi panoya kopyalandı!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Copied GitHub URL!", Toast.LENGTH_SHORT).show()
                                     }
                                 }
                         ) {
@@ -260,7 +263,7 @@ fun KvkkAndLegalNoticeDialog(
                                 )
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
-                                    contentDescription = "Kopyala",
+                                    contentDescription = "Copy",
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -269,7 +272,6 @@ fun KvkkAndLegalNoticeDialog(
                     }
                 }
 
-                // Zero-Data Collection KVKK & GDPR
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -281,19 +283,18 @@ fun KvkkAndLegalNoticeDialog(
                             Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "KVKK / GDPR & Gizlilik Garantisi",
+                                text = appString("legal_privacy_title"),
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Uygulama hiçbir kişisel veriyi kaydetmez, depolamaz ve uygulama dışına çıkarmaz. Tüm veriler, okuma konumları, yer imleri ve kitaplığınız sadece cihazınızın yerel hafızasında saklanır.",
+                            text = "100% Zero Data Collection. All reading history, bookmarks, offline audio, and documents remain stored locally on your device only.",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
                 }
 
-                // User Responsibility Disclaimer
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = Color(0xFFEF4444).copy(alpha = 0.1f)
@@ -305,14 +306,14 @@ fun KvkkAndLegalNoticeDialog(
                             Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Kullanıcı Sorumluluğu & Sorumluluk Reddi",
+                                text = appString("legal_disclaimer_title"),
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = Color(0xFFDC2626)
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Uygulamanın kötüye kullanımından, yüklenen/okunan telifli içeriklerden ve kullanım koşullarına aykırı eylemlerden doğabilecek her türlü hukuki, idari ve cezai sorumluluk tamamen kullanıcıya aittir.",
+                            text = "The user bears full responsibility for imported content and compliance with applicable copyright laws.",
                             style = MaterialTheme.typography.bodySmall,
                             color = Color(0xFFB91C1C)
                         )
@@ -325,7 +326,7 @@ fun KvkkAndLegalNoticeDialog(
                 onClick = onDismiss,
                 shape = RoundedCornerShape(8.dp)
             ) {
-                Text("Anladım")
+                Text(appString("understood"))
             }
         }
     )

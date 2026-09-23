@@ -38,6 +38,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.data.model.AudioBookmarkEntity
 import com.example.data.model.AudiobookEntity
+import com.example.data.model.OnlineAudiobookItem
+import com.example.util.i18n.I18nManager
+import com.example.util.i18n.AppLanguage
 import com.example.ui.components.AudiobookListItem
 import com.example.ui.components.formatTime
 import com.example.ui.theme.EmeraldPrimary
@@ -181,7 +184,61 @@ fun AudiobookPlayerScreen(
                 }
             }
 
-            // Tabs: 0 -> Player, 1 -> Kütüphane, 2 -> Yer İmleri & Notlar
+            // Localized Tab Titles
+            val currentLang = I18nManager.currentLanguage
+            val playerTabTitle = when (currentLang) {
+                AppLanguage.TURKISH -> "Oynatıcı"
+                AppLanguage.ENGLISH -> "Player"
+                AppLanguage.RUSSIAN -> "Плеер"
+                AppLanguage.GERMAN -> "Spieler"
+                AppLanguage.FRENCH -> "Lecteur"
+                AppLanguage.SPANISH -> "Reproductor"
+                AppLanguage.ITALIAN -> "Lettore"
+                AppLanguage.ARABIC -> "المشغل"
+                AppLanguage.JAPANESE -> "プレイヤー"
+                AppLanguage.INDONESIAN -> "Pemutar"
+                AppLanguage.CHINESE -> "播放器"
+            }
+            val libraryTabTitle = when (currentLang) {
+                AppLanguage.TURKISH -> "Kitaplık"
+                AppLanguage.ENGLISH -> "Library"
+                AppLanguage.RUSSIAN -> "Библиотека"
+                AppLanguage.GERMAN -> "Bibliothek"
+                AppLanguage.FRENCH -> "Bibliothèque"
+                AppLanguage.SPANISH -> "Biblioteca"
+                AppLanguage.ITALIAN -> "Libreria"
+                AppLanguage.ARABIC -> "المكتبة"
+                AppLanguage.JAPANESE -> "ライブラリ"
+                AppLanguage.INDONESIAN -> "Perpustakaan"
+                AppLanguage.CHINESE -> "馆藏"
+            }
+            val bookmarksTabTitle = when (currentLang) {
+                AppLanguage.TURKISH -> "Zaman İmleri"
+                AppLanguage.ENGLISH -> "Bookmarks"
+                AppLanguage.RUSSIAN -> "Закладки"
+                AppLanguage.GERMAN -> "Lesezeichen"
+                AppLanguage.FRENCH -> "Signets"
+                AppLanguage.SPANISH -> "Marcadores"
+                AppLanguage.ITALIAN -> "Segnalibri"
+                AppLanguage.ARABIC -> "العلامات"
+                AppLanguage.JAPANESE -> "ブックマーク"
+                AppLanguage.INDONESIAN -> "Markah"
+                AppLanguage.CHINESE -> "书签"
+            }
+            val onlineSearchTabTitle = when (currentLang) {
+                AppLanguage.TURKISH -> "Arama (Online)"
+                AppLanguage.ENGLISH -> "Search (Online)"
+                AppLanguage.RUSSIAN -> "Поиск"
+                AppLanguage.GERMAN -> "Suche (Online)"
+                AppLanguage.FRENCH -> "Recherche"
+                AppLanguage.SPANISH -> "Buscar"
+                AppLanguage.ITALIAN -> "Cerca"
+                AppLanguage.ARABIC -> "البحث"
+                AppLanguage.JAPANESE -> "オンライン検索"
+                AppLanguage.INDONESIAN -> "Cari Online"
+                AppLanguage.CHINESE -> "在线搜索"
+            }
+
             TabRow(
                 selectedTabIndex = viewModel.selectedAudioTab,
                 containerColor = MaterialTheme.colorScheme.surface,
@@ -190,20 +247,26 @@ fun AudiobookPlayerScreen(
                 Tab(
                     selected = viewModel.selectedAudioTab == 0,
                     onClick = { viewModel.selectedAudioTab = 0 },
-                    text = { Text("Oynatıcı") },
+                    text = { Text(playerTabTitle) },
                     icon = { Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
                 Tab(
                     selected = viewModel.selectedAudioTab == 1,
                     onClick = { viewModel.selectedAudioTab = 1 },
-                    text = { Text("Kitaplık (${allAudiobooks.size})") },
+                    text = { Text("$libraryTabTitle (${allAudiobooks.size})") },
                     icon = { Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
                 Tab(
                     selected = viewModel.selectedAudioTab == 2,
                     onClick = { viewModel.selectedAudioTab = 2 },
-                    text = { Text("Zaman İmleri (${bookmarks.size})") },
+                    text = { Text("$bookmarksTabTitle (${bookmarks.size})") },
                     icon = { Icon(Icons.Default.Bookmarks, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                )
+                Tab(
+                    selected = viewModel.selectedAudioTab == 3,
+                    onClick = { viewModel.selectedAudioTab = 3 },
+                    text = { Text(onlineSearchTabTitle) },
+                    icon = { Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
             }
 
@@ -263,6 +326,10 @@ fun AudiobookPlayerScreen(
                         },
                         onDeleteBookmark = { viewModel.deleteBookmark(it) },
                         onAddBookmark = { showAddBookmarkDialog = true }
+                    )
+                    3 -> OnlineAudiobookSearchView(
+                        viewModel = viewModel,
+                        currentLanguage = currentLang
                     )
                 }
             }
@@ -1264,3 +1331,446 @@ fun PlaybackSpeedBottomSheet(
         }
     }
 }
+
+@Composable
+fun OnlineAudiobookSearchView(
+    viewModel: AudiobookViewModel,
+    currentLanguage: AppLanguage
+) {
+    val context = LocalContext.current
+    var searchInput by remember { mutableStateOf(viewModel.onlineSearchQuery) }
+
+    val searchPlaceholder = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Tüm kaynaklarda sesli kitap ara... (Örn: war and peace)"
+        AppLanguage.ENGLISH -> "Search audiobooks... (e.g. war and peace)"
+        AppLanguage.RUSSIAN -> "Искать аудиокниги..."
+        AppLanguage.GERMAN -> "Hörbücher suchen..."
+        AppLanguage.FRENCH -> "Rechercher des livres audio..."
+        AppLanguage.SPANISH -> "Buscar audiolibros..."
+        AppLanguage.ITALIAN -> "Cerca audiolibri..."
+        AppLanguage.ARABIC -> "البحث عن الكتب الصوتية..."
+        AppLanguage.JAPANESE -> "オーディオブックを検索..."
+        AppLanguage.INDONESIAN -> "Cari buku audio..."
+        AppLanguage.CHINESE -> "搜索有声书..."
+    }
+
+    val searchButtonText = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Ara"
+        AppLanguage.ENGLISH -> "Search"
+        AppLanguage.RUSSIAN -> "Поиск"
+        AppLanguage.GERMAN -> "Suchen"
+        AppLanguage.FRENCH -> "Rechercher"
+        AppLanguage.SPANISH -> "Buscar"
+        AppLanguage.ITALIAN -> "Cerca"
+        AppLanguage.ARABIC -> "بحث"
+        AppLanguage.JAPANESE -> "検索"
+        AppLanguage.INDONESIAN -> "Cari"
+        AppLanguage.CHINESE -> "搜索"
+    }
+
+    val attributionText = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Bu sesli kitap kayıtları LibriVox gönüllüleri tarafından sağlanmıştır (librivox.org). Kamu malı eserlerdir."
+        AppLanguage.ENGLISH -> "These audiobook recordings are provided by LibriVox volunteers (librivox.org). They are public domain works."
+        AppLanguage.RUSSIAN -> "Эти аудиозаписи предоставлены волонтерами LibriVox (librivox.org). Это произведения общественного достояния."
+        AppLanguage.GERMAN -> "Diese Hörbuchaufnahmen werden von LibriVox-Freiwilligen zur Verfügung gestellt (librivox.org). Sie sind gemeinfrei."
+        AppLanguage.FRENCH -> "Ces enregistrements de livres audio sont fournis par des bénévoles de LibriVox (librivox.org). Ce sont des œuvres du domaine public."
+        AppLanguage.SPANISH -> "Estas grabaciones de audiolibros son proporcionadas por voluntarios de LibriVox (librivox.org). Son obras de dominio público."
+        AppLanguage.ITALIAN -> "Queste registrazioni di audiolibri sono fornite dai volontari di LibriVox (librivox.org). Sono opere di pubblico dominio."
+        AppLanguage.ARABIC -> "يتم توفير تسجيلات الكتب الصوتية هذه من قبل متطوعي LibriVox (librivox.org). وهي أعمال في المجال العام."
+        AppLanguage.JAPANESE -> "これらのオーディオブックの録音は、LibriVoxのボランティア（librivox.org）によって提供されています。これらはパブリックドメインの作品です。"
+        AppLanguage.INDONESIAN -> "Rekaman buku audio ini disediakan oleh sukarelawan LibriVox (librivox.org). Ini adalah karya domain publik."
+        AppLanguage.CHINESE -> "这些有声书录音由 LibriVox 志愿者 (librivox.org) 提供。它们是公共领域的作品。"
+    }
+
+    val scanningText = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Açık arşivler taranıyor, ses akışları çözümleniyor..."
+        AppLanguage.ENGLISH -> "Scanning public archives, resolving streams..."
+        AppLanguage.RUSSIAN -> "Сканирование архивов, определение потоков..."
+        AppLanguage.GERMAN -> "Archive werden gescannt, Streams werden aufgelöst..."
+        AppLanguage.FRENCH -> "Analyse des archives, résolution des flux..."
+        AppLanguage.SPANISH -> "Escaneando archivos, resolviendo transmisiones..."
+        AppLanguage.ITALIAN -> "Scansione archivi, risoluzione flussi..."
+        AppLanguage.ARABIC -> "جاري مسح الأرشيفات، وحل التدفقات..."
+        AppLanguage.JAPANESE -> "公開アーカイブをスキャン中、ストリームを解決中..."
+        AppLanguage.INDONESIAN -> "Memindai arsip, menyelesaikan aliran..."
+        AppLanguage.CHINESE -> "正在扫描公共归档，正在解析音频流..."
+    }
+
+    val initialText = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Arşivlerde milyonlarca kamu malı eser bulunuyor. Arama yaparak dinlemeye başlayın!"
+        AppLanguage.ENGLISH -> "There are millions of public domain works in archives. Search to start listening!"
+        AppLanguage.RUSSIAN -> "В архивах миллионы произведений общественного достояния. Найдите, чтобы начать слушать!"
+        AppLanguage.GERMAN -> "Es gibt Millionen gemeinfreier Werke in den Archiven. Suchen Sie, um zuzuhören!"
+        AppLanguage.FRENCH -> "Il y a des millions d'œuvres du domaine public dans les archives. Recherchez pour écouter !"
+        AppLanguage.SPANISH -> "Hay millones de obras de dominio público en los archivos. ¡Busca para empezar a escuchar!"
+        AppLanguage.ITALIAN -> "Ci sono milioni di opere di pubblico dominio negli archivi. Cerca per iniziare ad ascoltare!"
+        AppLanguage.ARABIC -> "هناك الملايين من أعمال المجال العام في الأرشيف. ابحث لبدء الاستماع!"
+        AppLanguage.JAPANESE -> "アーカイブには何百万ものパブリックドメインの作品があります。検索して聴き始めましょう！"
+        AppLanguage.INDONESIAN -> "Ada jutaan karya domain publik di arsip. Cari untuk mulai mendengarkan!"
+        AppLanguage.CHINESE -> "归档中包含数百万部公共领域作品。开始搜索并倾听吧！"
+    }
+
+    val resultsTitle = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Arama Sonuçları"
+        AppLanguage.ENGLISH -> "Search Results"
+        AppLanguage.RUSSIAN -> "Результаты поиска"
+        AppLanguage.GERMAN -> "Suchergebnisse"
+        AppLanguage.FRENCH -> "Résultats de recherche"
+        AppLanguage.SPANISH -> "Resultados de búsqueda"
+        AppLanguage.ITALIAN -> "Risultati della ricerca"
+        AppLanguage.ARABIC -> "نتائج البحث"
+        AppLanguage.JAPANESE -> "検索結果"
+        AppLanguage.INDONESIAN -> "Hasil Pencarian"
+        AppLanguage.CHINESE -> "搜索结果"
+    }
+
+    val streamLoadingMsg = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Ses akış adresi doğrulanıyor ve yükleniyor..."
+        AppLanguage.ENGLISH -> "Verifying and loading audio stream..."
+        AppLanguage.RUSSIAN -> "Проверка и загрузка аудиопотока..."
+        AppLanguage.GERMAN -> "Audiostream wird überprüft und geladen..."
+        AppLanguage.FRENCH -> "Vérification et chargement du flux audio..."
+        AppLanguage.SPANISH -> "Verificando y cargando transmisión de audio..."
+        AppLanguage.ITALIAN -> "Verifica e caricamento del flusso audio..."
+        AppLanguage.ARABIC -> "جاري التحقق من تدفق الصوت وتحميله..."
+        AppLanguage.JAPANESE -> "音声ストリームを検証して読み込み中..."
+        AppLanguage.INDONESIAN -> "Memverifikasi dan memuat aliran audio..."
+        AppLanguage.CHINESE -> "正在验证并加载音频流..."
+    }
+
+    val nowPlayingMsg = when (currentLanguage) {
+        AppLanguage.TURKISH -> "çalınıyor!"
+        AppLanguage.ENGLISH -> "is playing!"
+        AppLanguage.RUSSIAN -> "играет!"
+        AppLanguage.GERMAN -> "wird abgespielt!"
+        AppLanguage.FRENCH -> "est en cours de lecture !"
+        AppLanguage.SPANISH -> "se está reproduciendo!"
+        AppLanguage.ITALIAN -> "in riproduzione!"
+        AppLanguage.ARABIC -> "يشتغل الآن!"
+        AppLanguage.JAPANESE -> "が再生されています！"
+        AppLanguage.INDONESIAN -> "sedang diputar!"
+        AppLanguage.CHINESE -> "正在播放！"
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .testTag("online_audiobook_search_view"),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Unified Search Field
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchInput,
+                    onValueChange = { searchInput = it },
+                    placeholder = { Text(searchPlaceholder, fontSize = 13.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.weight(1f)
+                )
+                Button(
+                    onClick = {
+                        viewModel.searchOnlineAudiobooks(searchInput)
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = EmeraldPrimary)
+                ) {
+                    Text(searchButtonText, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        // Legal Attribution Info Card
+        item {
+            Card(
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = attributionText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            lineHeight = 16.sp
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "LibriVox • Internet Archive • Loyal Books",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = EmeraldPrimary
+                        )
+                    }
+                }
+            }
+        }
+
+        // Search Status & Errors
+        if (viewModel.isOnlineSearching) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = EmeraldPrimary, modifier = Modifier.size(36.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = scanningText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+
+        viewModel.onlineSearchError?.let { err ->
+            item {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = err,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(12.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        }
+
+        // Items Grid/List
+        if (viewModel.onlineAudiobooks.isEmpty() && !viewModel.isOnlineSearching) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = initialText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else if (!viewModel.isOnlineSearching) {
+            item {
+                Text(
+                    text = "$resultsTitle (${viewModel.onlineAudiobooks.size})",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+
+            items(viewModel.onlineAudiobooks, key = { it.id }) { item ->
+                OnlineAudiobookItemCard(
+                    item = item,
+                    currentLanguage = currentLanguage,
+                    onPlay = {
+                        Toast.makeText(context, streamLoadingMsg, Toast.LENGTH_SHORT).show()
+                        viewModel.playOnlineAudiobook(item) {
+                            Toast.makeText(context, "\"${item.title}\" $nowPlayingMsg", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun OnlineAudiobookItemCard(
+    item: OnlineAudiobookItem,
+    currentLanguage: AppLanguage,
+    onPlay: () -> Unit
+) {
+    val authorLabel = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Yazar"
+        AppLanguage.ENGLISH -> "Author"
+        AppLanguage.RUSSIAN -> "Автор"
+        AppLanguage.GERMAN -> "Autor"
+        AppLanguage.FRENCH -> "Auteur"
+        AppLanguage.SPANISH -> "Autor"
+        AppLanguage.ITALIAN -> "Autore"
+        AppLanguage.ARABIC -> "المؤلف"
+        AppLanguage.JAPANESE -> "著者"
+        AppLanguage.INDONESIAN -> "Penulis"
+        AppLanguage.CHINESE -> "作者"
+    }
+
+    val narratorLabel = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Seslendiren"
+        AppLanguage.ENGLISH -> "Narrator"
+        AppLanguage.RUSSIAN -> "Читает"
+        AppLanguage.GERMAN -> "Sprecher"
+        AppLanguage.FRENCH -> "Narrateur"
+        AppLanguage.SPANISH -> "Narrador"
+        AppLanguage.ITALIAN -> "Narratore"
+        AppLanguage.ARABIC -> "الراوي"
+        AppLanguage.JAPANESE -> "ナレーター"
+        AppLanguage.INDONESIAN -> "Narator"
+        AppLanguage.CHINESE -> "朗读者"
+    }
+
+    val sourceLabel = when (currentLanguage) {
+        AppLanguage.TURKISH -> "Kaynak"
+        AppLanguage.ENGLISH -> "Source"
+        AppLanguage.RUSSIAN -> "Источник"
+        AppLanguage.GERMAN -> "Quelle"
+        AppLanguage.FRENCH -> "Source"
+        AppLanguage.SPANISH -> "Fuente"
+        AppLanguage.ITALIAN -> "Fonte"
+        AppLanguage.ARABIC -> "المصدر"
+        AppLanguage.JAPANESE -> "ソース"
+        AppLanguage.INDONESIAN -> "Sumber"
+        AppLanguage.CHINESE -> "来源"
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onPlay() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Book cover
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = item.coverImageUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.BottomEnd
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Headphones,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.8f),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .padding(2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "$authorLabel: ${item.author}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (item.narrator.isNotBlank()) {
+                    Text(
+                        text = "$narratorLabel: ${item.narrator}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                // Badges
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.padding(1.dp)
+                    ) {
+                        Text(
+                            text = "$sourceLabel: ${item.source}",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = EmeraldPrimary.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = item.category,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = EmeraldPrimary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            IconButton(
+                onClick = onPlay,
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = EmeraldPrimary.copy(alpha = 0.15f),
+                    contentColor = EmeraldPrimary
+                )
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = "Oynat")
+            }
+        }
+    }
+}
+

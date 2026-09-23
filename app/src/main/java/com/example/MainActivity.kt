@@ -48,16 +48,8 @@ class MainActivity : ComponentActivity() {
         handleIncomingIntent(intent)
 
         setContent {
-            val systemDark = isSystemInDarkTheme()
-            val isDark = when (settingsViewModel.appThemeMode) {
-                AppThemeMode.SYSTEM -> systemDark
-                AppThemeMode.LIGHT -> false
-                AppThemeMode.DARK -> true
-                AppThemeMode.AMOLED -> true
-            }
-
-            CompositionLocalProvider(LocalAppLanguage provides I18nManager.currentLanguage) {
-                MyApplicationTheme(darkTheme = isDark) {
+            CompositionLocalProvider(LocalAppLanguage provides settingsViewModel.selectedLanguage) {
+                MyApplicationTheme(appThemeMode = settingsViewModel.appThemeMode) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background

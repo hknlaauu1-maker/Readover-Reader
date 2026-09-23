@@ -19,11 +19,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-enum class AppThemeMode(val title: String) {
-    SYSTEM("Sistem Varsayılanı"),
-    LIGHT("Açık Tema (Gündüz)"),
-    DARK("Karanlık Tema (Gece)"),
-    AMOLED("AMOLED (Tam Siyah)")
+enum class AppThemeMode(val stringKey: String) {
+    SYSTEM("theme_mode_system"),
+    LIGHT("theme_mode_light"),
+    DARK("theme_mode_dark"),
+    AMOLED("theme_mode_amoled"),
+    SEPIA("theme_mode_sepia"),
+    FOREST("theme_mode_forest")
 }
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {

@@ -260,7 +260,7 @@ fun SettingsScreen(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = themeMode.title,
+                                    text = appString(themeMode.stringKey),
                                     style = MaterialTheme.typography.bodyMedium
                                 )
                             }
