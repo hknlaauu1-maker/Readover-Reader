@@ -446,20 +446,44 @@ fun PlayerMainView(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Box(
+            // Interactive Headphone Icon with Plus (+) badge to import audiobooks
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 8.dp,
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(88.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+                    .clickable { onPickLocalAudio() }
+                    .testTag("btn_center_add_audiobook")
             ) {
-                Icon(
-                    imageVector = Icons.Default.Headphones,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(40.dp)
-                )
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Headphones,
+                        contentDescription = "Sesli Kitap Ekle",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(46.dp)
+                    )
+                    // Plus (+) badge overlay in the bottom right corner of the icon
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(6.dp)
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
+
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Çalınan Sesli Kitap Yok",
@@ -467,23 +491,20 @@ fun PlayerMainView(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Yerel MP3/M4A dosyası seçebilir veya YouTube/Web ses linki ekleyebilirsiniz.",
+                text = "Cihazınızdaki sesli kitapları eklemek için yukarıdaki kulaklık simgesine dokunun veya web ses linki ekleyin.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Button(onClick = onPickLocalAudio) {
-                    Icon(Icons.Default.AudioFile, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Yerel Dosya Seç")
-                }
-                OutlinedButton(onClick = onOpenAddLink) {
-                    Icon(Icons.Default.AddLink, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Link Ekle")
-                }
+            Spacer(modifier = Modifier.height(20.dp))
+            OutlinedButton(
+                onClick = onOpenAddLink,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.AddLink, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Link Ekle")
             }
         }
         return

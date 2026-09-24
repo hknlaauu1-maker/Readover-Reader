@@ -398,18 +398,20 @@ fun SettingsScreen(
                 )
             }
 
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (AdManager.isPremiumUser) Color(0xFF10B981).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+            if (AdManager.isPremiumUser) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF10B981).copy(alpha = 0.12f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -417,53 +419,40 @@ fun SettingsScreen(
                                 Icon(
                                     imageVector = Icons.Default.WorkspacePremium,
                                     contentDescription = null,
-                                    tint = if (AdManager.isPremiumUser) Color(0xFF059669) else Color(0xFFD97706),
+                                    tint = Color(0xFF059669),
                                     modifier = Modifier.size(26.dp)
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = if (AdManager.isPremiumUser) "Readover Premium Aktif" else "Reklam Kaldırma & Satın Alma",
+                                        text = "Readover Premium Aktif",
                                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                                     )
                                     Text(
-                                        text = if (AdManager.isPremiumUser) "Tüm reklamlar kalıcı olarak kapatıldı" else "Tek ödeme ile reklamları kaldırın",
+                                        text = "Tüm reklamlar kalıcı olarak kapatıldı",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
 
-                            if (AdManager.isPremiumUser) {
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFF10B981)
-                                ) {
-                                    Text(
-                                        text = "AKTİF ✓",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            } else {
-                                Button(
-                                    onClick = { showPremiumDialog = true },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier.testTag("btn_go_premium")
-                                ) {
-                                    Text("Satın Al", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF10B981)
+                            ) {
+                                Text(
+                                    text = "AKTİF ✓",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
                             }
                         }
                     }
                 }
-            }
-
-            // Ad Banner view for non-premium users
-            if (!AdManager.isPremiumUser) {
+            } else {
+                // Ad Banner / Remove Ads Card
                 item {
                     AdBannerCard(onRemoveAdsClick = { showPremiumDialog = true })
                 }
@@ -493,7 +482,7 @@ fun SettingsScreen(
                             Icon(Icons.Default.Code, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Readover Reader Tabanlı Modifikasyon",
+                                text = "Librera Reader Tabanlı Modifikasyon",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                             )
                         }
@@ -501,7 +490,7 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Bu uygulama Readover Reader tabanlıdır, Hakan ULU tarafından modifiye edilmiştir ve kaynak kodlarına https://github.com/hknlaauu1-maker/Readover-Reader adresinden ulaşılabilir.",
+                            text = "Bu uygulama Librera Reader tabanlıdır, Hakan ULU tarafından modifiye edilmiştir ve kaynak kodlarına https://github.com/hknlaauu1-maker/Readover-Reader adresinden ulaşılabilir.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
