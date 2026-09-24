@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.BookmarkEntity
 import com.example.ui.theme.*
 import com.example.util.i18n.appString
+import com.example.util.stats.StatsManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +53,14 @@ fun ReaderScreen(
     val context = LocalContext.current
     val book by viewModel.currentBook.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+
+    // Active reading session tracker
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(10000L)
+            StatsManager.addReadingTime(context, 10L)
+        }
+    }
 
     // Initialize TTS controller
     val ttsController = remember {
@@ -178,7 +187,17 @@ fun ReaderScreen(
 
                         // Bookmark Button
                         IconButton(
-                            onClick = { viewModel.showBookmarkDialog = true },
+                            onClick = {
+                                if (isCurrentPageBookmarked) {
+                                    val currentB = bookmarks.find { it.pageNumber == currentPageNum }
+                                    if (currentB != null) {
+                                        viewModel.deleteBookmark(currentB)
+                                        Toast.makeText(context, "Yer imi kaldırıldı!", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    viewModel.showBookmarkDialog = true
+                                }
+                            },
                             modifier = Modifier.testTag("bookmark_toggle_button")
                         ) {
                             Icon(
@@ -526,6 +545,34 @@ fun ReaderScreen(
                                 Text("${ttsController.speechRate}x")
                             }
 
+                            // Dynamic Language Selector Dropdown
+                            var showLangMenu by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(onClick = { showLangMenu = true }) {
+                                    Icon(Icons.Default.Translate, contentDescription = "Dil Seçimi")
+                                }
+
+                                DropdownMenu(
+                                    expanded = showLangMenu,
+                                    onDismissRequest = { showLangMenu = false }
+                                ) {
+                                    ttsController.supportedLanguages.forEach { (locale, name) ->
+                                        DropdownMenuItem(
+                                            text = { Text(name) },
+                                            onClick = {
+                                                ttsController.setLanguage(locale)
+                                                showLangMenu = false
+                                            },
+                                            leadingIcon = {
+                                                if (ttsController.currentLanguage == locale) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
                             IconButton(onClick = {
                                 ttsController.stop()
                                 viewModel.showTtsBar = false
@@ -808,50 +855,149 @@ fun ReaderScreen(
                     .padding(horizontal = 20.dp, vertical = 12.dp)
                     .navigationBarsPadding()
             ) {
-                Text(
-                    text = appString("toc"),
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                )
+                var selectedTab by remember { mutableIntStateOf(0) }
+
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    modifier = Modifier.fillMaxWidth(),
+                    containerColor = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.primary
+                ) {
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = { Text("Bölümler") }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = { Text("Yer İmleri (${bookmarks.size})") }
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                LazyColumn(
-                    modifier = Modifier.fillMaxHeight(0.6f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(viewModel.pagination.chapters) { chapter ->
-                        val isCurrent = currentPageNum >= chapter.startPage
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.goToPage(chapter.startPage - 1)
-                                    viewModel.showTocSheet = false
-                                },
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-                            )
-                        ) {
-                            Row(
+                if (selectedTab == 0) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxHeight(0.6f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(viewModel.pagination.chapters) { chapter ->
+                            val isCurrent = currentPageNum >= chapter.startPage
+                            Card(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                    .clickable {
+                                        viewModel.goToPage(chapter.startPage - 1)
+                                        viewModel.showTocSheet = false
+                                    },
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isCurrent) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+                                )
                             ) {
-                                Text(
-                                    text = chapter.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
-                                    ),
-                                    modifier = Modifier.weight(1f),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "Sayfa ${chapter.startPage}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = chapter.title,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal
+                                        ),
+                                        modifier = Modifier.weight(1f),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "Sayfa ${chapter.startPage}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    if (bookmarks.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(0.4f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Bu kitap için eklenmiş yer imi yok.\nSağ üstteki yer imi butonunu kullanarak ekleyebilirsiniz.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxHeight(0.6f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(bookmarks) { bookmark ->
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            viewModel.goToPage(bookmark.pageNumber - 1)
+                                            viewModel.showTocSheet = false
+                                        },
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(12.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(bookmark.colorHex))
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Text(
+                                                    text = "Sayfa ${bookmark.pageNumber}",
+                                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+                                                )
+                                                if (bookmark.userNote.isNotEmpty()) {
+                                                    Text(
+                                                        text = bookmark.userNote,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                viewModel.deleteBookmark(bookmark)
+                                            }
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Sil",
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

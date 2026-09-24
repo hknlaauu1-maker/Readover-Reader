@@ -33,15 +33,15 @@ abstract class ReadoverDatabase : RoomDatabase() {
 
         fun getDatabase(context: Context): ReadoverDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     ReadoverDatabase::class.java,
                     "readover_database"
                 )
                     .fallbackToDestructiveMigration()
-                    .build()
-                INSTANCE = instance
-                instance
+                    .build().also {
+                        INSTANCE = it
+                    }
             }
         }
     }

@@ -2,26 +2,33 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Readover Signature Emerald & Reader Palette
-val EmeraldPrimary = Color(0xFF059669)
-val EmeraldOnPrimary = Color(0xFFFFFFFF)
-val EmeraldPrimaryContainer = Color(0xFFD1FAE5)
-val EmeraldOnPrimaryContainer = Color(0xFF064E3B)
+// Readover Premium Terracotta & Slate Grey Palette (Matching user images)
+val GoldPrimary = Color(0xFFC25D43) // Terracotta Burnt Orange Accent
+val GoldDarkPrimary = Color(0xFFC25D43)
+val GoldLightPrimary = Color(0xFFC25D43) // Terracotta Primary for Light Theme
+val NavyDeep = Color(0xFF1E252B) // Slate Charcoal Background
+val NavyMedium = Color(0xFF293138) // Slate Medium Surface
+val NavyLight = Color(0xFF37414B) // Slate Light Surface Variant
 
-val TealSecondary = Color(0xFF0D9488)
-val TealOnSecondary = Color(0xFFFFFFFF)
-val TealSecondaryContainer = Color(0xFFCCFBF1)
-val TealOnSecondaryContainer = Color(0xFF134E4A)
+val EmeraldPrimary = Color(0xFFD5B263) // Golden Sand Accent (previously Emerald)
+val EmeraldOnPrimary = Color(0xFF151413)
+val EmeraldPrimaryContainer = Color(0xFFFFF3D4)
+val EmeraldOnPrimaryContainer = Color(0xFF42310C)
 
-val WarmAmberTertiary = Color(0xFFD97706)
-val AmberTertiaryContainer = Color(0xFFFEF3C7)
+val TealSecondary = Color(0xFF22211F) // Espresso Accent (previously Teal)
+val TealOnSecondary = Color(0xFFEADEC9)
+val TealSecondaryContainer = Color(0xFF2E2B28)
+val TealOnSecondaryContainer = Color(0xFFEADEC9)
+
+val WarmAmberTertiary = Color(0xFFD5B263)
+val AmberTertiaryContainer = Color(0xFFFFF3D4)
 
 // Reading Background Presets
-val ReadingDayBg = Color(0xFFFFFFFF)
-val ReadingDayText = Color(0xFF1F2937)
+val ReadingDayBg = Color(0xFFFAF7F2)
+val ReadingDayText = Color(0xFF1D1B18)
 
-val ReadingNightBg = Color(0xFF1E293B)
-val ReadingNightText = Color(0xFFE2E8F0)
+val ReadingNightBg = Color(0xFF151413) // Immersive MidnightReads espresso
+val ReadingNightText = Color(0xFFEADEC9)
 
 val ReadingAmoledBg = Color(0xFF000000)
 val ReadingAmoledText = Color(0xFFF1F5F9)
@@ -36,18 +43,18 @@ val ReadingForestBg = Color(0xFF13281E)
 val ReadingForestText = Color(0xFFE6F4EA)
 
 // Light Palette
-val LightBackground = Color(0xFFF8FAFB)
+val LightBackground = Color(0xFFF4F6F7) // Soft cool light grey background
 val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceVariant = Color(0xFFF1F5F9)
-val LightOnSurface = Color(0xFF0F172A)
-val LightOnSurfaceVariant = Color(0xFF475569)
+val LightSurfaceVariant = Color(0xFFECEFF1)
+val LightOnSurface = Color(0xFF1E252B)
+val LightOnSurfaceVariant = Color(0xFF546E7A)
 
 // Dark Palette
-val DarkBackground = Color(0xFF0B1311)
-val DarkSurface = Color(0xFF131F1C)
-val DarkSurfaceVariant = Color(0xFF1E2E2A)
-val DarkOnSurface = Color(0xFFF1F5F9)
-val DarkOnSurfaceVariant = Color(0xFF94A3B8)
-val DarkPrimary = Color(0xFF34D399)
-val DarkPrimaryContainer = Color(0xFF064E3B)
-val DarkOnPrimaryContainer = Color(0xFFA7F3D0)
+val DarkBackground = Color(0xFF1E252B) // Slate Charcoal Background (from image)
+val DarkSurface = Color(0xFF293138) // Slate card surface (from image)
+val DarkSurfaceVariant = Color(0xFF37414B)
+val DarkOnSurface = Color(0xFFECEFF1) // Off-white / Soft Grey text
+val DarkOnSurfaceVariant = Color(0xFF90A4AE) // Slate secondary subtext
+val DarkPrimary = Color(0xFFC25D43) // Terracotta Burnt Orange Accent
+val DarkPrimaryContainer = Color(0xFF293138)
+val DarkOnPrimaryContainer = Color(0xFFECEFF1)

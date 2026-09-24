@@ -3,6 +3,7 @@ package com.example
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,6 +34,12 @@ import com.example.ui.settings.SettingsViewModel
 import com.example.ui.theme.MyApplicationTheme
 import com.example.util.i18n.I18nManager
 import com.example.util.i18n.LocalAppLanguage
+import com.example.util.stats.StatsManager
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import com.example.data.database.ReadoverDatabase
+import com.example.data.repository.ReadoverRepository
 
 class MainActivity : ComponentActivity() {
 
@@ -43,6 +50,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Initialize persistent stats manager
+        StatsManager.init(this)
+
+        // Seed initial data exactly once safely on background thread
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val database = ReadoverDatabase.getDatabase(this@MainActivity)
+                val repository = ReadoverRepository(
+                    database.bookDao(),
+                    database.bookmarkDao(),
+                    database.audiobookDao(),
+                    application
+                )
+                repository.checkAndSeedInitialData()
+            } catch (e: Exception) {
+                // Safely catch any startup database initialization/seeding error
+            }
+        }
 
         // Check if opened via external intent
         handleIncomingIntent(intent)
@@ -117,14 +143,21 @@ class MainActivity : ComponentActivity() {
             val scheme = uri.scheme ?: ""
             val path = uri.path?.lowercase() ?: ""
 
-            if (type.startsWith("audio/") || path.endsWith(".mp3") || path.endsWith(".m4a") || path.endsWith(".wav") || path.endsWith(".aac")) {
-                audiobookViewModel.importAudioFile(uri) {
-                    Toast.makeText(this, "Sesli kitap Readover'a aktarıldı!", Toast.LENGTH_SHORT).show()
+            try {
+                if (type.startsWith("audio/") || path.endsWith(".mp3") || path.endsWith(".m4a") || path.endsWith(".wav") || path.endsWith(".aac")) {
+                    audiobookViewModel.importAudioFile(uri) {
+                        Toast.makeText(this, "Sesli kitap Readover'a aktarıldı!", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    libraryViewModel.importBookFile(uri) {
+                        Toast.makeText(this, "Belge Readover'a aktarıldı!", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            } else {
-                libraryViewModel.importBookFile(uri) {
-                    Toast.makeText(this, "Belge Readover'a aktarıldı!", Toast.LENGTH_SHORT).show()
-                }
+            } catch (e: SecurityException) {
+                Log.e("MainActivity", "URI erişim güvenlik hatası: ${e.message}")
+                Toast.makeText(this, "Dosya erişim izni alınamadı.", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Intent işleme hatası: ${e.message}")
             }
         }
     }

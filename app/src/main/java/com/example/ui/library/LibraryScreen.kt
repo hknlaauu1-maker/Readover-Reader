@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,11 +43,12 @@ import com.example.ui.components.WoodenBookshelfGrid
 import com.example.ui.components.BookListItem
 import com.example.ui.components.FormatBadge
 import com.example.ui.components.MiniAudioPlayerBar
+import com.example.ui.components.ReadingStatsDashboardCard
+import com.example.ui.settings.AppThemeMode
+import androidx.compose.foundation.isSystemInDarkTheme
 import com.example.ui.settings.PremiumPurchaseDialog
 import com.example.ui.settings.SettingsScreen
 import com.example.ui.settings.SettingsViewModel
-import com.example.ui.theme.EmeraldPrimary
-import com.example.ui.theme.TealSecondary
 import com.example.util.ads.AdManager
 import com.example.util.i18n.appString
 import java.text.SimpleDateFormat
@@ -154,7 +156,10 @@ fun LibraryScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(
                                         Brush.linearGradient(
-                                            listOf(EmeraldPrimary, TealSecondary)
+                                            listOf(
+                                                MaterialTheme.colorScheme.primary,
+                                                MaterialTheme.colorScheme.secondary
+                                            )
                                         )
                                     ),
                                 contentAlignment = Alignment.Center
@@ -184,6 +189,25 @@ fun LibraryScreen(
                         }
                     },
                     actions = {
+                        // Quick Dark Mode Toggle Button
+                        val isDark = when (settingsViewModel.appThemeMode) {
+                            AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+                            AppThemeMode.LIGHT, AppThemeMode.SEPIA -> false
+                            AppThemeMode.DARK, AppThemeMode.AMOLED, AppThemeMode.FOREST -> true
+                        }
+                        IconButton(
+                            onClick = {
+                                settingsViewModel.appThemeMode = if (isDark) AppThemeMode.LIGHT else AppThemeMode.DARK
+                            },
+                            modifier = Modifier.testTag("quick_dark_mode_toggle")
+                        ) {
+                            Icon(
+                                imageVector = if (isDark) Icons.Default.LightMode else Icons.Default.DarkMode,
+                                contentDescription = "Gece Modu",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
                         // Search Button
                         IconButton(
                             onClick = {
@@ -230,7 +254,7 @@ fun LibraryScreen(
                                         },
                                         leadingIcon = {
                                             if (viewModel.sortOrder == order) {
-                                                Icon(Icons.Default.Check, contentDescription = null, tint = EmeraldPrimary)
+                                                Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                             }
                                         }
                                     )
@@ -291,12 +315,22 @@ fun LibraryScreen(
             }
         },
         floatingActionButton = {
-            if (viewModel.selectedTab == 0) {
+            if (viewModel.selectedTab == 0 && filteredBooks.isNotEmpty()) {
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.padding(horizontal = 8.dp)
                 ) {
+                    // Tek Ana "Kitap Aç" Butonu (Kitaplar varken sağ altta)
+                    ExtendedFloatingActionButton(
+                        onClick = { viewModel.isOpenLibraryDialogOpen = true },
+                        icon = { Icon(Icons.Default.Add, contentDescription = appString("open_book")) },
+                        text = { Text(appString("open_book"), fontWeight = FontWeight.Bold, fontSize = 14.sp) },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.testTag("fab_open_book")
+                    )
+
                     if (!AdManager.isPremiumUser) {
                         AdBannerCard(
                             onRemoveAdsClick = { showPremiumDialog = true },
@@ -304,44 +338,13 @@ fun LibraryScreen(
                             modifier = Modifier.fillMaxWidth(0.95f)
                         )
                     }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Açık Kütüphane (Internet Archive & Açık Kaynak Kitaplar)
-                        ExtendedFloatingActionButton(
-                            onClick = { viewModel.isOpenLibraryDialogOpen = true },
-                            icon = { Icon(Icons.Default.Public, contentDescription = "Açık Kütüphane") },
-                            text = { Text("Açık Kütüphane", fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.testTag("fab_open_library")
-                        )
-
-                        // Kitap Aç (Yerel Dosya İçe Aktarma)
-                        ExtendedFloatingActionButton(
-                            onClick = {
-                                filePickerLauncher.launch(
-                                    arrayOf(
-                                        "application/pdf",
-                                        "application/epub+zip",
-                                        "application/msword",
-                                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                        "text/plain",
-                                        "application/octet-stream",
-                                        "*/*"
-                                    )
-                                )
-                            },
-                            icon = { Icon(Icons.Default.Add, contentDescription = appString("open_book")) },
-                            text = { Text(appString("open_book"), fontWeight = FontWeight.SemiBold, fontSize = 13.sp) },
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.testTag("fab_import_book")
-                        )
-                    }
                 }
+            } else if (viewModel.selectedTab == 0 && !AdManager.isPremiumUser && filteredBooks.isEmpty()) {
+                AdBannerCard(
+                    onRemoveAdsClick = { showPremiumDialog = true },
+                    isCompact = true,
+                    modifier = Modifier.fillMaxWidth(0.95f)
+                )
             }
         }
     ) { innerPadding ->
@@ -353,12 +356,18 @@ fun LibraryScreen(
             when (viewModel.selectedTab) {
                 0 -> LibraryContent(
                     books = filteredBooks,
+                    allBooks = allBooks,
                     isGridView = viewModel.isGridView,
                     onOpenBook = onOpenBook,
                     onOpenLibraryClicked = { viewModel.isOpenLibraryDialogOpen = true },
                     onRemoveAdsClick = { showPremiumDialog = true },
                     onToggleFavorite = { viewModel.toggleFavorite(it) },
-                    onBookLongClick = { selectedBookForDetails = it }
+                    onBookLongClick = { selectedBookForDetails = it },
+                    selectedFormatFilter = viewModel.selectedFormatFilter,
+                    onFormatFilterSelected = { viewModel.selectedFormatFilter = it },
+                    searchQuery = viewModel.searchQuery,
+                    onSearchQueryChanged = { viewModel.searchQuery = it },
+                    onImportClicked = { viewModel.isOpenLibraryDialogOpen = true }
                 )
                 2 -> RecentReadsContent(
                     recentBooks = recentBooks,
@@ -389,6 +398,19 @@ fun LibraryScreen(
         viewModel = viewModel,
         onOpenDownloadedBook = { downloadedBookId ->
             onOpenBook(downloadedBookId)
+        },
+        onImportLocalFile = {
+            filePickerLauncher.launch(
+                arrayOf(
+                    "application/pdf",
+                    "application/epub+zip",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "text/plain",
+                    "application/octet-stream",
+                    "*/*"
+                )
+            )
         }
     )
 
@@ -528,72 +550,94 @@ fun ReadoverBottomBar(
 @Composable
 fun LibraryContent(
     books: List<BookEntity>,
+    allBooks: List<BookEntity>,
     isGridView: Boolean,
     onOpenBook: (Long) -> Unit,
     onOpenLibraryClicked: () -> Unit,
     onRemoveAdsClick: () -> Unit,
     onToggleFavorite: (BookEntity) -> Unit,
-    onBookLongClick: (BookEntity) -> Unit
+    onBookLongClick: (BookEntity) -> Unit,
+    selectedFormatFilter: String = "TÜMÜ",
+    onFormatFilterSelected: (String) -> Unit = {},
+    searchQuery: String = "",
+    onSearchQueryChanged: (String) -> Unit = {},
+    onImportClicked: () -> Unit
 ) {
-    if (books.isEmpty()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(64.dp)
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Kitaplığınız Henüz Boş",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Açık Kütüphane'den yüzlerce klasik eseri tek tıkla indirebilir veya yerel belgelerinizi ekleyebilirsiniz.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            Button(
-                onClick = onOpenLibraryClicked,
-                shape = RoundedCornerShape(12.dp)
+    Column(modifier = Modifier.fillMaxSize()) {
+        if (books.isEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Icon(Icons.Default.Public, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Açık Kütüphaneyi Aç")
-            }
-        }
-        return
-    }
+                // Active "Kitap Aç" button in place of the center empty state image
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .clickable { onImportClicked() }
+                        .testTag("btn_center_open_book")
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = appString("open_book"),
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(38.dp)
+                            )
+                        }
+                    }
+                }
 
-    if (isGridView) {
-        WoodenBookshelfGrid(
-            books = books,
-            onOpenBook = onOpenBook,
-            onToggleFavorite = onToggleFavorite,
-            modifier = Modifier.fillMaxSize()
-        )
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp, top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(books, key = { it.id }) { book ->
-                BookListItem(
-                    book = book,
-                    onClick = { onOpenBook(book.id) },
-                    onToggleFavorite = { onToggleFavorite(book) }
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text(
+                    text = "Kitaplığınız Boş",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    textAlign = TextAlign.Center
                 )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "Cihazınızda, Google Drive veya diğer bulut hesaplarınızda bulunan kitap ve belgelerinizi hemen kütüphanenize aktarabilirsiniz.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+            }
+        } else {
+            if (isGridView) {
+                WoodenBookshelfGrid(
+                    books = books,
+                    onOpenBook = onOpenBook,
+                    onToggleFavorite = onToggleFavorite,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp, top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(books, key = { it.id }) { book ->
+                        BookListItem(
+                            book = book,
+                            onClick = { onOpenBook(book.id) },
+                            onToggleFavorite = { onToggleFavorite(book) }
+                        )
+                    }
+                }
             }
         }
     }

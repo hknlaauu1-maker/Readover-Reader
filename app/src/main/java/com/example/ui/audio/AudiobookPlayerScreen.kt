@@ -66,6 +66,16 @@ fun AudiobookPlayerScreen(
     val sleepSecondsLeft by viewModel.sleepTimerSecondsLeft.collectAsStateWithLifecycle()
     val bookmarks by viewModel.currentBookmarks.collectAsStateWithLifecycle()
 
+    // Active listening tracker
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (true) {
+                kotlinx.coroutines.delay(10000L)
+                com.example.util.stats.StatsManager.addListeningTime(context, 10L)
+            }
+        }
+    }
+
     var showAddLinkDialog by remember { mutableStateOf(false) }
     var showAddBookmarkDialog by remember { mutableStateOf(false) }
     var showSleepTimerSheet by remember { mutableStateOf(false) }
@@ -240,7 +250,7 @@ fun AudiobookPlayerScreen(
             }
 
             TabRow(
-                selectedTabIndex = viewModel.selectedAudioTab,
+                selectedTabIndex = if (viewModel.selectedAudioTab >= 2) 2 else viewModel.selectedAudioTab,
                 containerColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.primary
             ) {
@@ -257,14 +267,8 @@ fun AudiobookPlayerScreen(
                     icon = { Icon(Icons.Default.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
                 Tab(
-                    selected = viewModel.selectedAudioTab == 2,
+                    selected = viewModel.selectedAudioTab == 2 || viewModel.selectedAudioTab == 3,
                     onClick = { viewModel.selectedAudioTab = 2 },
-                    text = { Text("$bookmarksTabTitle (${bookmarks.size})") },
-                    icon = { Icon(Icons.Default.Bookmarks, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                )
-                Tab(
-                    selected = viewModel.selectedAudioTab == 3,
-                    onClick = { viewModel.selectedAudioTab = 3 },
                     text = { Text(onlineSearchTabTitle) },
                     icon = { Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp)) }
                 )
@@ -318,16 +322,7 @@ fun AudiobookPlayerScreen(
                         },
                         onOpenAddLink = { showAddLinkDialog = true }
                     )
-                    2 -> AudioBookmarksView(
-                        bookmarks = bookmarks,
-                        onSeekTo = {
-                            viewModel.seekTo(it)
-                            viewModel.selectedAudioTab = 0
-                        },
-                        onDeleteBookmark = { viewModel.deleteBookmark(it) },
-                        onAddBookmark = { showAddBookmarkDialog = true }
-                    )
-                    3 -> OnlineAudiobookSearchView(
+                    else -> OnlineAudiobookSearchView(
                         viewModel = viewModel,
                         currentLanguage = currentLang
                     )

@@ -34,6 +34,7 @@ import com.example.data.model.BookEntity
 import com.example.data.model.BookmarkEntity
 import com.example.ui.components.AdBannerCard
 import com.example.ui.components.FormatBadge
+import com.example.ui.components.ReadingStatsDashboardCard
 import com.example.ui.reader.ReadingThemeMode
 import com.example.ui.theme.EmeraldPrimary
 import com.example.ui.theme.TealSecondary
@@ -270,7 +271,7 @@ fun SettingsScreen(
             }
 
             // -------------------------------------------------------------
-            // SECTION 3: READING STATISTICS (Previously in Bottom Nav)
+            // SECTION 3: READING STATISTICS (Moved to Settings)
             // -------------------------------------------------------------
             item {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -279,6 +280,11 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary
                 )
+            }
+
+            // Interactive Weekly Reading Dashboard Card
+            item {
+                ReadingStatsDashboardCard(allBooks = allBooks)
             }
 
             // Statistics Summary Cards

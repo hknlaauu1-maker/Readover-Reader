@@ -36,12 +36,6 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         application
     )
 
-    init {
-        viewModelScope.launch {
-            repository.checkAndSeedInitialData()
-        }
-    }
-
     var selectedTab by mutableIntStateOf(0) // 0: Kitaplık, 1: S. Kitap, 2: Son Okunan, 3: Yer İmleri, 4: İstatistik
     var searchQuery by mutableStateOf("")
     var selectedFormatFilter by mutableStateOf("TÜMÜ")
@@ -53,9 +47,13 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
     var openLibrarySearchQuery by mutableStateOf("")
     var openLibraryCategoryFilter by mutableStateOf("Tümü")
     var isOpenLibrarySearching by mutableStateOf(false)
-    var openLibraryBooks by mutableStateOf<List<OpenBookItem>>(OpenLibraryService.curatedCatalog)
+    var openLibraryBooks by mutableStateOf<List<OpenBookItem>>(emptyList())
     var downloadingBookIds by mutableStateOf<Set<String>>(emptySet())
     var downloadedBookIds by mutableStateOf<Set<String>>(emptySet())
+
+    init {
+        searchOpenLibrary("")
+    }
 
     fun searchOpenLibrary(query: String, langCode: String = I18nManager.currentLanguage.code) {
         openLibrarySearchQuery = query
@@ -65,7 +63,11 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
                 val results = OpenLibraryService.searchOpenBooks(query, langCode)
                 openLibraryBooks = results
             } catch (e: Exception) {
-                openLibraryBooks = OpenLibraryService.curatedCatalog
+                try {
+                    openLibraryBooks = OpenLibraryService.searchOpenBooks("", langCode)
+                } catch (innerEx: Exception) {
+                    openLibraryBooks = OpenLibraryService.curatedCatalog
+                }
             } finally {
                 isOpenLibrarySearching = false
             }
@@ -107,7 +109,15 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
 
         // Format filter
         if (selectedFormatFilter != "TÜMÜ") {
-            list = list.filter { it.format.equals(selectedFormatFilter, ignoreCase = true) }
+            if (selectedFormatFilter == "DİĞER") {
+                list = list.filter { 
+                    !it.format.equals("PDF", ignoreCase = true) && 
+                    !it.format.equals("EPUB", ignoreCase = true) && 
+                    !it.format.equals("MOBI", ignoreCase = true) 
+                }
+            } else {
+                list = list.filter { it.format.equals(selectedFormatFilter, ignoreCase = true) }
+            }
         }
 
         // Search query

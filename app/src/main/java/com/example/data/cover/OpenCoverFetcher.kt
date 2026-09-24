@@ -13,8 +13,8 @@ object OpenCoverFetcher {
     private const val TAG = "OpenCoverFetcher"
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(6, TimeUnit.SECONDS)
-        .readTimeout(6, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
         .build()
 
     // Pre-curated high quality open source covers for popular classics
@@ -56,7 +56,22 @@ object OpenCoverFetcher {
         "tutunamayanlar" to "https://covers.openlibrary.org/b/id/8236120-L.jpg",
         "kürk mantolu madonna" to "https://covers.openlibrary.org/b/id/8237190-L.jpg",
         "kurk mantolu madonna" to "https://covers.openlibrary.org/b/id/8237190-L.jpg",
-        "kuyucaklı yusuf" to "https://covers.openlibrary.org/b/id/8238190-L.jpg"
+        "kuyucaklı yusuf" to "https://covers.openlibrary.org/b/id/8238190-L.jpg",
+        "dune" to "https://covers.openlibrary.org/b/id/9125346-L.jpg",
+        "sapiens" to "https://covers.openlibrary.org/b/id/8741369-L.jpg",
+        "hamlet" to "https://covers.openlibrary.org/b/id/8231991-L.jpg",
+        "faust" to "https://covers.openlibrary.org/b/id/8234567-L.jpg",
+        "dorian gray" to "https://covers.openlibrary.org/b/id/8236521-L.jpg",
+        "gurur ve önyargı" to "https://covers.openlibrary.org/b/id/8231852-L.jpg",
+        "pride and prejudice" to "https://covers.openlibrary.org/b/id/8231852-L.jpg",
+        "vadideki zambak" to "https://covers.openlibrary.org/b/id/8239012-L.jpg",
+        "çalıkuşu" to "https://covers.openlibrary.org/b/id/8240123-L.jpg",
+        "calikusu" to "https://covers.openlibrary.org/b/id/8240123-L.jpg",
+        "anna karenina" to "https://covers.openlibrary.org/b/id/8234509-L.jpg",
+        "savaş ve barış" to "https://covers.openlibrary.org/b/id/8234510-L.jpg",
+        "war and peace" to "https://covers.openlibrary.org/b/id/8234510-L.jpg",
+        "karamazov kardeşler" to "https://covers.openlibrary.org/b/id/8235651-L.jpg",
+        "the brothers karamazov" to "https://covers.openlibrary.org/b/id/8235651-L.jpg"
     )
 
     suspend fun fetchCoverUrl(title: String, author: String? = null): String? = withContext(Dispatchers.IO) {
@@ -81,7 +96,7 @@ object OpenCoverFetcher {
             }
 
             val encoded = URLEncoder.encode(query, "UTF-8")
-            val openLibUrl = "https://openlibrary.org/search.json?q=$encoded&limit=2"
+            val openLibUrl = "https://openlibrary.org/search.json?q=$encoded&limit=3"
 
             val request = Request.Builder()
                 .url(openLibUrl)
@@ -95,19 +110,21 @@ object OpenCoverFetcher {
                         val json = JSONObject(body)
                         val docs = json.optJSONArray("docs")
                         if (docs != null && docs.length() > 0) {
-                            val firstDoc = docs.getJSONObject(0)
-                            val coverI = firstDoc.optInt("cover_i", -1)
-                            if (coverI > 0) {
-                                return@withContext "https://covers.openlibrary.org/b/id/$coverI-L.jpg"
-                            }
-                            val coverEditionKey = firstDoc.optString("cover_edition_key", "")
-                            if (coverEditionKey.isNotBlank()) {
-                                return@withContext "https://covers.openlibrary.org/b/olid/$coverEditionKey-L.jpg"
-                            }
-                            val isbns = firstDoc.optJSONArray("isbn")
-                            if (isbns != null && isbns.length() > 0) {
-                                val firstIsbn = isbns.getString(0)
-                                return@withContext "https://covers.openlibrary.org/b/isbn/$firstIsbn-L.jpg"
+                            for (i in 0 until docs.length()) {
+                                val doc = docs.getJSONObject(i)
+                                val coverI = doc.optInt("cover_i", -1)
+                                if (coverI > 0) {
+                                    return@withContext "https://covers.openlibrary.org/b/id/$coverI-L.jpg"
+                                }
+                                val coverEditionKey = doc.optString("cover_edition_key", "")
+                                if (coverEditionKey.isNotBlank()) {
+                                    return@withContext "https://covers.openlibrary.org/b/olid/$coverEditionKey-L.jpg"
+                                }
+                                val isbns = doc.optJSONArray("isbn")
+                                if (isbns != null && isbns.length() > 0) {
+                                    val firstIsbn = isbns.getString(0)
+                                    return@withContext "https://covers.openlibrary.org/b/isbn/$firstIsbn-L.jpg"
+                                }
                             }
                         }
                     }
@@ -120,7 +137,7 @@ object OpenCoverFetcher {
         // 3. Fallback: Google Books Open API Search
         try {
             val encodedTitle = URLEncoder.encode(cleanTitle, "UTF-8")
-            val googleUrl = "https://www.googleapis.com/books/v1/volumes?q=$encodedTitle&maxResults=1"
+            val googleUrl = "https://www.googleapis.com/books/v1/volumes?q=$encodedTitle&maxResults=2"
 
             val request = Request.Builder()
                 .url(googleUrl)
@@ -133,17 +150,21 @@ object OpenCoverFetcher {
                         val json = JSONObject(body)
                         val items = json.optJSONArray("items")
                         if (items != null && items.length() > 0) {
-                            val item = items.getJSONObject(0)
-                            val volumeInfo = item.optJSONObject("volumeInfo")
-                            val imageLinks = volumeInfo?.optJSONObject("imageLinks")
-                            var thumb = imageLinks?.optString("thumbnail")
-                                ?: imageLinks?.optString("smallThumbnail")
-                            if (!thumb.isNullOrBlank()) {
-                                // Ensure https & high resolution
-                                if (thumb.startsWith("http://")) {
-                                    thumb = thumb.replace("http://", "https://")
+                            for (i in 0 until items.length()) {
+                                val item = items.getJSONObject(i)
+                                val volumeInfo = item.optJSONObject("volumeInfo")
+                                val imageLinks = volumeInfo?.optJSONObject("imageLinks")
+                                var thumb = imageLinks?.optString("thumbnail")
+                                    ?: imageLinks?.optString("smallThumbnail")
+                                if (!thumb.isNullOrBlank()) {
+                                    // Ensure https & high resolution
+                                    if (thumb.startsWith("http://")) {
+                                        thumb = thumb.replace("http://", "https://")
+                                    }
+                                    // Remove zoom curl constraints for clean full cover
+                                    thumb = thumb.replace("&edge=curl", "")
+                                    return@withContext thumb
                                 }
-                                return@withContext thumb
                             }
                         }
                     }
@@ -162,6 +183,7 @@ object OpenCoverFetcher {
             .replace(Regex("\\[.*?\\]"), "")
             .replace(Regex("\\(.*?\\)"), "")
             .replace(Regex("[_\\-]+"), " ")
+            .replace(Regex("\\s+"), " ")
             .trim()
     }
 }

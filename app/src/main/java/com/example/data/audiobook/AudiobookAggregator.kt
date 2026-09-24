@@ -48,8 +48,8 @@ object AudiobookAggregator {
         }
 
         // Run search calls in parallel using async coroutines
-        val librivoxDeferred = async { fetchLibriVox(trimmedQuery) }
-        val archiveDeferred = async { fetchInternetArchive(trimmedQuery) }
+        val librivoxDeferred = async { fetchLibriVox(trimmedQuery, lang) }
+        val archiveDeferred = async { fetchInternetArchive(trimmedQuery, lang) }
         val loyalBooksDeferred = async { fetchLoyalBooks(trimmedQuery) }
 
         val librivoxList = try { librivoxDeferred.await() } catch (e: Exception) { emptyList() }
@@ -130,56 +130,127 @@ object AudiobookAggregator {
         ""
     }
 
+    private fun getLanguageEnglishName(lang: AppLanguage): String {
+        return when (lang) {
+            AppLanguage.TURKISH -> "Turkish"
+            AppLanguage.ENGLISH -> "English"
+            AppLanguage.RUSSIAN -> "Russian"
+            AppLanguage.GERMAN -> "German"
+            AppLanguage.FRENCH -> "French"
+            AppLanguage.SPANISH -> "Spanish"
+            AppLanguage.ITALIAN -> "Italian"
+            AppLanguage.ARABIC -> "Arabic"
+            AppLanguage.JAPANESE -> "Japanese"
+            AppLanguage.INDONESIAN -> "Indonesian"
+            AppLanguage.CHINESE -> "Chinese"
+        }
+    }
+
+    private fun parseLibriVoxJson(books: org.json.JSONArray, list: MutableList<OnlineAudiobookItem>) {
+        for (i in 0 until books.length()) {
+            val book = books.getJSONObject(i)
+            val id = book.optString("id", "")
+            val title = book.optString("title", "Unknown Audiobook")
+            val desc = book.optString("description", "")
+            val totalTime = book.optLong("totaltimesecs", 0L)
+            val rssUrl = book.optString("url_rss", "")
+
+            val authorsArr = book.optJSONArray("authors")
+            var author = "LibriVox Volunteers"
+            if (authorsArr != null && authorsArr.length() > 0) {
+                val firstAuthor = authorsArr.getJSONObject(0)
+                val first = firstAuthor.optString("first_name", "")
+                val last = firstAuthor.optString("last_name", "")
+                author = "$first $last".trim()
+            }
+
+            val coverUrl = "https://archive.org/services/img/librivox_audiobook_cover_art"
+
+            list.add(
+                OnlineAudiobookItem(
+                    id = "librivox-$id",
+                    title = title,
+                    author = author,
+                    narrator = "LibriVox Volunteers",
+                    coverImageUrl = coverUrl,
+                    audioUrl = rssUrl,
+                    source = "LibriVox",
+                    description = desc,
+                    durationMs = totalTime * 1000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
+            )
+        }
+    }
+
+    private fun parseArchiveDocs(docs: org.json.JSONArray, list: MutableList<OnlineAudiobookItem>) {
+        for (i in 0 until docs.length()) {
+            val doc = docs.getJSONObject(i)
+            val identifier = doc.optString("identifier", "")
+            val title = doc.optString("title", "Internet Archive Audio")
+            val creator = doc.optString("creator", "LibriVox Volunteers")
+            val downloads = doc.optInt("downloads", 0)
+            val desc = doc.optString("description", "")
+
+            val coverUrl = "https://archive.org/services/img/$identifier"
+
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-$identifier",
+                    title = title,
+                    author = creator,
+                    narrator = "LibriVox Volunteers",
+                    coverImageUrl = coverUrl,
+                    audioUrl = identifier,
+                    source = "Internet Archive",
+                    description = desc,
+                    durationMs = 0L,
+                    category = "Kamu Malı (Downloads: $downloads)"
+                )
+            )
+        }
+    }
+
     /**
-     * Source 1: LibriVox API Search (by Title)
+     * Source 1: LibriVox API Search (by Title, filtered by selected language with dual-fallback)
      */
-    private suspend fun fetchLibriVox(query: String): List<OnlineAudiobookItem> = withContext(Dispatchers.IO) {
+    private suspend fun fetchLibriVox(query: String, lang: AppLanguage): List<OnlineAudiobookItem> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OnlineAudiobookItem>()
         try {
             val encoded = URLEncoder.encode(query, "UTF-8")
-            val url = "https://librivox.org/api/feed/audiobooks/?title=$encoded&format=json"
+            val englishLangName = getLanguageEnglishName(lang)
+            var url = "https://librivox.org/api/feed/audiobooks/?title=$encoded&language=$englishLangName&format=json"
             
-            val request = Request.Builder().url(url).build()
+            var request = Request.Builder().url(url).build()
+            var responseSuccess = false
+            
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val jsonStr = response.body?.string() ?: return@use
+                    val jsonStr = response.body?.string() ?: ""
                     if (jsonStr.trim().startsWith("{")) {
                         val root = JSONObject(jsonStr)
-                        val books = root.optJSONArray("books") ?: return@use
-                        for (i in 0 until books.length()) {
-                            val book = books.getJSONObject(i)
-                            val id = book.optString("id", "")
-                            val title = book.optString("title", "Unknown Audiobook")
-                            val desc = book.optString("description", "")
-                            val totalTime = book.optLong("totaltimesecs", 0L)
-                            val rssUrl = book.optString("url_rss", "")
-
-                            val authorsArr = book.optJSONArray("authors")
-                            var author = "LibriVox Volunteers"
-                            if (authorsArr != null && authorsArr.length() > 0) {
-                                val firstAuthor = authorsArr.getJSONObject(0)
-                                val first = firstAuthor.optString("first_name", "")
-                                val last = firstAuthor.optString("last_name", "")
-                                author = "$first $last".trim()
+                        val books = root.optJSONArray("books")
+                        if (books != null && books.length() > 0) {
+                            parseLibriVoxJson(books, list)
+                            responseSuccess = true
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: If no localized results were found, query globally (without language filter)
+            if (!responseSuccess && lang != AppLanguage.ENGLISH) {
+                url = "https://librivox.org/api/feed/audiobooks/?title=$encoded&format=json"
+                request = Request.Builder().url(url).build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val jsonStr = response.body?.string() ?: ""
+                        if (jsonStr.trim().startsWith("{")) {
+                            val root = JSONObject(jsonStr)
+                            val books = root.optJSONArray("books")
+                            if (books != null) {
+                                parseLibriVoxJson(books, list)
                             }
-
-                            // Use LibriVox placeholder cover pattern or open library query
-                            val coverUrl = "https://archive.org/services/img/librivox_audiobook_cover_art"
-
-                            list.add(
-                                OnlineAudiobookItem(
-                                    id = "librivox-$id",
-                                    title = title,
-                                    author = author,
-                                    narrator = "LibriVox Volunteers",
-                                    coverImageUrl = coverUrl,
-                                    audioUrl = rssUrl, // Resolved asynchronously when user initiates playback
-                                    source = "LibriVox",
-                                    description = desc,
-                                    durationMs = totalTime * 1000L,
-                                    category = "Kamu Malı (Public Domain)"
-                                )
-                            )
                         }
                     }
                 }
@@ -191,46 +262,46 @@ object AudiobookAggregator {
     }
 
     /**
-     * Source 2: Internet Archive (Advanced Search with LibriVox filter)
+     * Source 2: Internet Archive (Advanced Search with LibriVox & selected language filter with dual-fallback)
      */
-    private suspend fun fetchInternetArchive(query: String): List<OnlineAudiobookItem> = withContext(Dispatchers.IO) {
+    private suspend fun fetchInternetArchive(query: String, lang: AppLanguage): List<OnlineAudiobookItem> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OnlineAudiobookItem>()
         try {
-            val encodedQuery = URLEncoder.encode("collection:(librivox) AND mediatype:(audio) AND (title:($query) OR creator:($query))", "UTF-8")
-            val url = "https://archive.org/advancedsearch.php?q=$encodedQuery&fl[]=identifier,title,creator,downloads,description&sort[]=downloads+desc&rows=15&output=json"
+            // Include language filter in query (e.g. AND language:turkish or language:tr)
+            val langQuery = " AND (language:${lang.code} OR language:${getLanguageEnglishName(lang).lowercase()})"
+            val encodedQuery = URLEncoder.encode("collection:(librivox) AND mediatype:(audio) AND (title:($query) OR creator:($query))$langQuery", "UTF-8")
+            var url = "https://archive.org/advancedsearch.php?q=$encodedQuery&fl[]=identifier,title,creator,downloads,description&sort[]=downloads+desc&rows=15&output=json"
 
-            val request = Request.Builder().url(url).build()
+            var request = Request.Builder().url(url).build()
+            var responseSuccess = false
+
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val jsonStr = response.body?.string() ?: return@use
+                    val jsonStr = response.body?.string() ?: ""
                     val root = JSONObject(jsonStr)
-                    val respObj = root.optJSONObject("response") ?: return@use
-                    val docs = respObj.optJSONArray("docs") ?: return@use
+                    val respObj = root.optJSONObject("response")
+                    val docs = respObj?.optJSONArray("docs")
+                    if (docs != null && docs.length() > 0) {
+                        parseArchiveDocs(docs, list)
+                        responseSuccess = true
+                    }
+                }
+            }
 
-                    for (i in 0 until docs.length()) {
-                        val doc = docs.getJSONObject(i)
-                        val identifier = doc.optString("identifier", "")
-                        val title = doc.optString("title", "Internet Archive Audio")
-                        val creator = doc.optString("creator", "LibriVox Volunteers")
-                        val downloads = doc.optInt("downloads", 0)
-                        val desc = doc.optString("description", "")
-
-                        val coverUrl = "https://archive.org/services/img/$identifier"
-
-                        list.add(
-                            OnlineAudiobookItem(
-                                id = "archive-$identifier",
-                                title = title,
-                                author = creator,
-                                narrator = "LibriVox Volunteers",
-                                coverImageUrl = coverUrl,
-                                audioUrl = identifier, // Resolve metadata on play
-                                source = "Internet Archive",
-                                description = desc,
-                                durationMs = 0L,
-                                category = "Kamu Malı (Downloads: $downloads)"
-                            )
-                        )
+            // Fallback to global search if no localized books found
+            if (!responseSuccess && lang != AppLanguage.ENGLISH) {
+                val fallbackEncodedQuery = URLEncoder.encode("collection:(librivox) AND mediatype:(audio) AND (title:($query) OR creator:($query))", "UTF-8")
+                url = "https://archive.org/advancedsearch.php?q=$fallbackEncodedQuery&fl[]=identifier,title,creator,downloads,description&sort[]=downloads+desc&rows=15&output=json"
+                request = Request.Builder().url(url).build()
+                client.newCall(request).execute().use { response ->
+                    if (response.isSuccessful) {
+                        val jsonStr = response.body?.string() ?: ""
+                        val root = JSONObject(jsonStr)
+                        val respObj = root.optJSONObject("response")
+                        val docs = respObj?.optJSONArray("docs")
+                        if (docs != null) {
+                            parseArchiveDocs(docs, list)
+                        }
                     }
                 }
             }
@@ -247,7 +318,7 @@ object AudiobookAggregator {
         val list = mutableListOf<OnlineAudiobookItem>()
         try {
             // Since loyalbooks.com/opds is standard Atom, we parse fiction category and filter on query locally for extreme speed and robustness.
-            val url = "http://www.loyalbooks.com/opds/category/fiction"
+            val url = "https://www.loyalbooks.com/opds/category/fiction"
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
@@ -326,70 +397,113 @@ object AudiobookAggregator {
     }
 
     /**
-     * Provide a selection of world classic audiobooks on first load when search is empty
+     * Provide a selection of world classic audiobooks on first load when search is empty (Localized to selected language)
      */
     fun getCuratedDefaultAudiobooks(lang: AppLanguage): List<OnlineAudiobookItem> {
         val list = mutableListOf<OnlineAudiobookItem>()
-        // Warm classic 1
-        list.add(
-            OnlineAudiobookItem(
-                id = "archive-war_and_peace_01_librivox",
-                title = if (lang == AppLanguage.TURKISH) "Savaş ve Barış (War and Peace)" else "War and Peace",
-                author = "Leo Tolstoy",
-                narrator = "LibriVox Volunteers",
-                coverImageUrl = "https://archive.org/services/img/war_and_peace_01_librivox",
-                audioUrl = "war_and_peace_01_librivox",
-                source = "Internet Archive",
-                description = "Leo Tolstoy's classic masterpiece narrated beautifully by LibriVox volunteers.",
-                durationMs = 7800000L,
-                category = "Kamu Malı (Public Domain)"
+        if (lang == AppLanguage.TURKISH) {
+            // Localized Turkish Masterpieces
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-ataturk_nutuk_0811_librivox",
+                    title = "Nutuk (1. Bölüm)",
+                    author = "Mustafa Kemal Atatürk",
+                    narrator = "LibriVox Gönüllüleri",
+                    coverImageUrl = "https://archive.org/services/img/ataturk_nutuk_0811_librivox",
+                    audioUrl = "ataturk_nutuk_0811_librivox",
+                    source = "Internet Archive",
+                    description = "Mustafa Kemal Atatürk'ün Kurtuluş Savaşı ve cumhuriyetin kuruluş dönemini bizzat anlattığı ölümsüz eseri.",
+                    durationMs = 7200000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
             )
-        )
-        // Warm classic 2
-        list.add(
-            OnlineAudiobookItem(
-                id = "archive-pride_and_prejudice_librivox",
-                title = if (lang == AppLanguage.TURKISH) "Aşk ve Gurur (Pride and Prejudice)" else "Pride and Prejudice",
-                author = "Jane Austen",
-                narrator = "LibriVox Volunteers",
-                coverImageUrl = "https://archive.org/services/img/pride_and_prejudice_librivox",
-                audioUrl = "pride_and_prejudice_librivox",
-                source = "Internet Archive",
-                description = "Jane Austen's famous romantic comedy of manners.",
-                durationMs = 9400000L,
-                category = "Kamu Malı (Public Domain)"
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-eylul_1303_librivox",
+                    title = "Eylül",
+                    author = "Mehmet Rauf",
+                    narrator = "LibriVox Gönüllüleri",
+                    coverImageUrl = "https://archive.org/services/img/eylul_1303_librivox",
+                    audioUrl = "eylul_1303_librivox",
+                    source = "Internet Archive",
+                    description = "Mehmet Rauf'un edebiyatımızın ilk psikolojik romanı kabul edilen başyapıtı.",
+                    durationMs = 8600000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
             )
-        )
-        // Warm classic 3
-        list.add(
-            OnlineAudiobookItem(
-                id = "archive-sherlock_holmes_01_librivox",
-                title = if (lang == AppLanguage.TURKISH) "Sherlock Holmes'un Maceraları" else "The Adventures of Sherlock Holmes",
-                author = "Arthur Conan Doyle",
-                narrator = "LibriVox Volunteers",
-                coverImageUrl = "https://archive.org/services/img/adventures_sherlock_holmes_0710_librivox",
-                audioUrl = "adventures_sherlock_holmes_0710_librivox",
-                source = "Internet Archive",
-                description = "Arthur Conan Doyle's collection of standard mystery cases.",
-                durationMs = 8100000L,
-                category = "Kamu Malı (Public Domain)"
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-araba_sevdasi_1409_librivox",
+                    title = "Araba Sevdası",
+                    author = "Recaizade Mahmut Ekrem",
+                    narrator = "LibriVox Gönüllüleri",
+                    coverImageUrl = "https://archive.org/services/img/araba_sevdasi_1409_librivox",
+                    audioUrl = "araba_sevdasi_1409_librivox",
+                    source = "Internet Archive",
+                    description = "Türk edebiyatının ilk realist romanı olan, Batılılaşmayı yanlış anlayan bir gencin hikayesi.",
+                    durationMs = 9100000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
             )
-        )
-        // Warm classic 4
-        list.add(
-            OnlineAudiobookItem(
-                id = "archive-alice_in_wonderland_librivox",
-                title = if (lang == AppLanguage.TURKISH) "Alice Harikalar Diyarında" else "Alice's Adventures in Wonderland",
-                author = "Lewis Carroll",
-                narrator = "LibriVox Volunteers",
-                coverImageUrl = "https://archive.org/services/img/alice_in_wonderland_librivox",
-                audioUrl = "alice_in_wonderland_librivox",
-                source = "Internet Archive",
-                description = "Lewis Carroll's beloved fantasy tale.",
-                durationMs = 4500000L,
-                category = "Kamu Malı (Public Domain)"
+        } else {
+            // Standard Global Classics for English/Other languages
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-war_and_peace_01_librivox",
+                    title = "War and Peace",
+                    author = "Leo Tolstoy",
+                    narrator = "LibriVox Volunteers",
+                    coverImageUrl = "https://archive.org/services/img/war_and_peace_01_librivox",
+                    audioUrl = "war_and_peace_01_librivox",
+                    source = "Internet Archive",
+                    description = "Leo Tolstoy's classic masterpiece narrated beautifully by LibriVox volunteers.",
+                    durationMs = 7800000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
             )
-        )
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-pride_and_prejudice_librivox",
+                    title = "Pride and Prejudice",
+                    author = "Jane Austen",
+                    narrator = "LibriVox Volunteers",
+                    coverImageUrl = "https://archive.org/services/img/pride_and_prejudice_librivox",
+                    audioUrl = "pride_and_prejudice_librivox",
+                    source = "Internet Archive",
+                    description = "Jane Austen's famous romantic comedy of manners.",
+                    durationMs = 9400000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
+            )
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-sherlock_holmes_01_librivox",
+                    title = "The Adventures of Sherlock Holmes",
+                    author = "Arthur Conan Doyle",
+                    narrator = "LibriVox Volunteers",
+                    coverImageUrl = "https://archive.org/services/img/adventures_sherlock_holmes_0710_librivox",
+                    audioUrl = "adventures_sherlock_holmes_0710_librivox",
+                    source = "Internet Archive",
+                    description = "Arthur Conan Doyle's collection of standard mystery cases.",
+                    durationMs = 8100000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
+            )
+            list.add(
+                OnlineAudiobookItem(
+                    id = "archive-alice_in_wonderland_librivox",
+                    title = "Alice's Adventures in Wonderland",
+                    author = "Lewis Carroll",
+                    narrator = "LibriVox Volunteers",
+                    coverImageUrl = "https://archive.org/services/img/alice_in_wonderland_librivox",
+                    audioUrl = "alice_in_wonderland_librivox",
+                    source = "Internet Archive",
+                    description = "Lewis Carroll's beloved fantasy tale.",
+                    durationMs = 4500000L,
+                    category = "Kamu Malı (Public Domain)"
+                )
+            )
+        }
         return list
     }
 }

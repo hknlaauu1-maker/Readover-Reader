@@ -166,13 +166,27 @@ object BookAggregator {
     }
 
     /**
-     * Source 2: Open Library (search.json API)
+     * Source 2: Open Library (search.json API with language filtering)
      */
     suspend fun fetchOpenLibrary(query: String, langCode: String): List<OpenBookItem> = withContext(Dispatchers.IO) {
         val list = mutableListOf<OpenBookItem>()
         try {
             val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val url = "https://openlibrary.org/search.json?q=$encodedQuery&limit=15"
+            val olLang = when(langCode) {
+                "tr" -> "tur"
+                "en" -> "eng"
+                "ru" -> "rus"
+                "de" -> "ger"
+                "fr" -> "fre"
+                "es" -> "spa"
+                "it" -> "ita"
+                "ar" -> "ara"
+                "ja" -> "jpn"
+                "id" -> "ind"
+                "zh" -> "chi"
+                else -> langCode
+            }
+            val url = "https://openlibrary.org/search.json?q=$encodedQuery&language=$olLang&limit=15"
 
             val request = Request.Builder().url(url).build()
             client.newCall(request).execute().use { response ->
@@ -292,6 +306,99 @@ object BookAggregator {
     }
 
     private fun fetchCuratedDefaultBooks(langCode: String): List<OpenBookItem> {
-        return OpenLibraryService.curatedCatalog
+        val rawList = OpenLibraryService.curatedCatalog
+        if (langCode.equals("tr", ignoreCase = true)) {
+            return rawList
+        }
+        // Map to English counterparts for international users
+        return rawList.map { book ->
+            when (book.id) {
+                "curated-nutuk" -> book.copy(
+                    title = "The Speech (Nutuk)",
+                    author = "Mustafa Kemal Ataturk",
+                    category = "History & Politics",
+                    language = "English",
+                    description = "The immortal speech of Gazi Mustafa Kemal Ataturk, detailing the Turkish War of Independence and the foundation of the Republic."
+                )
+                "curated-suc-ve-ceza" -> book.copy(
+                    title = "Crime and Punishment",
+                    author = "Fyodor Dostoevsky",
+                    category = "World Classics",
+                    language = "English",
+                    description = "Raskolnikov, an impoverished student in St. Petersburg, conceives of a plan to murder and rob an unpleasant pawnbroker."
+                )
+                "curated-kucuk-prens" -> book.copy(
+                    title = "The Little Prince",
+                    author = "Antoine de Saint-Exupéry",
+                    category = "Children & Philosophy",
+                    language = "English",
+                    description = "A pilot stranded in the desert meets a young prince who fallen to Earth from a tiny asteroid."
+                )
+                "curated-donusum" -> book.copy(
+                    title = "The Metamorphosis",
+                    author = "Franz Kafka",
+                    category = "World Classics",
+                    language = "English",
+                    description = "Gregor Samsa, a traveling salesman, wakes up one morning to find himself transformed into a monstrous insect."
+                )
+                "curated-satranc" -> book.copy(
+                    title = "Chess Story",
+                    author = "Stefan Zweig",
+                    category = "Psychological Novel",
+                    language = "English",
+                    description = "A group of passengers on an ocean liner challenge the world chess champion to a match."
+                )
+                "curated-yeralti" -> book.copy(
+                    title = "Notes from Underground",
+                    author = "Fyodor Dostoevsky",
+                    category = "Philosophy & Fiction",
+                    language = "English",
+                    description = "A deeply psychological monologue of a retired civil servant living in St. Petersburg."
+                )
+                "curated-sherlock" -> book.copy(
+                    title = "A Study in Scarlet",
+                    author = "Arthur Conan Doyle",
+                    category = "Mystery & Adventure",
+                    language = "English",
+                    description = "The historic introduction of Dr. John Watson to the legendary consulting detective Sherlock Holmes."
+                )
+                "curated-sokrates" -> book.copy(
+                    title = "Apology of Socrates",
+                    author = "Plato",
+                    category = "Philosophy",
+                    language = "English",
+                    description = "Socrates' famous defense speech at his trial in Athens, defending wisdom, justice, and the examined life."
+                )
+                "curated-1984" -> book.copy(
+                    title = "1984",
+                    author = "George Orwell",
+                    category = "Dystopian Classic",
+                    language = "English",
+                    description = "Winston Smith's rebellion against the total control of Big Brother in the dystopian state of Oceania."
+                )
+                "curated-kurk-mantolu" -> book.copy(
+                    title = "Madonna in a Fur Coat",
+                    author = "Sabahattin Ali",
+                    category = "Turkish Literature",
+                    language = "English",
+                    description = "A timeless romantic masterpiece detailing Raif Efendi's inner life and his fateful encounter with Maria Puder in Berlin."
+                )
+                "curated-beyaz-dis" -> book.copy(
+                    title = "White Fang",
+                    author = "Jack London",
+                    category = "Adventure Classic",
+                    language = "English",
+                    description = "The epic story of a wild wolf-dog's journey through violence and domestication in the frozen North."
+                )
+                "curated-martin-eden" -> book.copy(
+                    title = "Martin Eden",
+                    author = "Jack London",
+                    category = "World Literature",
+                    language = "English",
+                    description = "An uneducated sailor's intense struggle to educate himself and become a famous writer for the love of a high-society woman."
+                )
+                else -> book
+            }
+        }
     }
 }

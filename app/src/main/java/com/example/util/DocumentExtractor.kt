@@ -1,8 +1,13 @@
 package com.example.util
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.util.Log
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.nio.charset.Charset
@@ -11,6 +16,96 @@ import java.util.zip.ZipInputStream
 object DocumentExtractor {
 
     private const val TAG = "DocumentExtractor"
+    private const val MAX_ZIP_ENTRIES = 1000
+    private const val MAX_TEXT_LENGTH = 10_000_000 // 10 million characters maximum to prevent DoS
+
+    /**
+     * Attempts to extract an embedded cover image from PDF (first page render) or EPUB (embedded cover image).
+     * Returns a local file:// URI string if successfully extracted.
+     */
+    fun extractEmbeddedCover(context: Context, uri: Uri, fileName: String): String? {
+        val extension = fileName.substringAfterLast('.', "").lowercase()
+        return try {
+            when (extension) {
+                "pdf" -> renderPdfCover(context, uri)
+                "epub" -> extractEpubCover(context, uri)
+                else -> null
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Embedded cover extraction skipped: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Renders page 1 of a PDF as a high-quality cover bitmap and saves to cache.
+     */
+    private fun renderPdfCover(context: Context, uri: Uri): String? {
+        var pfd: ParcelFileDescriptor? = null
+        var renderer: PdfRenderer? = null
+        var page: PdfRenderer.Page? = null
+        return try {
+            pfd = context.contentResolver.openFileDescriptor(uri, "r") ?: return null
+            renderer = PdfRenderer(pfd)
+            if (renderer.pageCount <= 0) return null
+
+            page = renderer.openPage(0)
+            val width = 360
+            val height = (width * (page.height.toFloat() / page.width.toFloat())).toInt().coerceIn(400, 600)
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+
+            val coversDir = File(context.cacheDir, "covers").apply { if (!exists()) mkdirs() }
+            val coverFile = File(coversDir, "pdf_cover_${System.currentTimeMillis()}_${(0..9999).random()}.jpg")
+            FileOutputStream(coverFile).use { out ->
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 88, out)
+            }
+            bitmap.recycle()
+            "file://${coverFile.absolutePath}"
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed to render PDF cover: ${e.message}")
+            null
+        } finally {
+            try { page?.close() } catch (_: Exception) {}
+            try { renderer?.close() } catch (_: Exception) {}
+            try { pfd?.close() } catch (_: Exception) {}
+        }
+    }
+
+    /**
+     * Extracts embedded cover image from an EPUB zip package.
+     */
+    private fun extractEpubCover(context: Context, uri: Uri): String? {
+        return context.contentResolver.openInputStream(uri)?.use { inputStream ->
+            val zip = ZipInputStream(inputStream)
+            var entry = zip.nextEntry
+            var count = 0
+            while (entry != null && count < MAX_ZIP_ENTRIES) {
+                count++
+                val name = entry.name.lowercase()
+                if (name.contains("..")) {
+                    zip.closeEntry()
+                    entry = zip.nextEntry
+                    continue
+                }
+
+                val isCoverName = name.contains("cover") || name.contains("titlepage") || name.contains("jacket")
+                val isImage = name.endsWith(".jpg") || name.endsWith(".jpeg") || name.endsWith(".png") || name.endsWith(".webp")
+
+                if (isCoverName && isImage) {
+                    val coversDir = File(context.cacheDir, "covers").apply { if (!exists()) mkdirs() }
+                    val coverFile = File(coversDir, "epub_cover_${System.currentTimeMillis()}_${(0..9999).random()}.jpg")
+                    FileOutputStream(coverFile).use { out ->
+                        zip.copyTo(out)
+                    }
+                    return@use "file://${coverFile.absolutePath}"
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+            null
+        }
+    }
 
     /**
      * Extracts clean, readable text content from a given document URI or file stream.
@@ -37,21 +132,31 @@ object DocumentExtractor {
 
     /**
      * Extracts text from Microsoft Word .docx files by unzipping word/document.xml
-     * and reading <w:t> XML text nodes.
+     * and reading <w:t> XML text nodes with zip-bomb safeguards.
      */
     private fun extractDocx(inputStream: InputStream): String {
         val zip = ZipInputStream(inputStream)
         val builder = StringBuilder()
+        var entriesCount = 0
 
         var entry = zip.nextEntry
-        while (entry != null) {
-            if (entry.name == "word/document.xml") {
+        while (entry != null && entriesCount < MAX_ZIP_ENTRIES) {
+            entriesCount++
+            val entryName = entry.name
+            if (entryName.contains("..")) {
+                zip.closeEntry()
+                entry = zip.nextEntry
+                continue
+            }
+
+            if (entryName == "word/document.xml") {
                 val reader = InputStreamReader(zip, Charsets.UTF_8)
                 val xmlContent = reader.readText()
                 
                 // Parse <w:p> paragraphs and <w:t> text elements
                 val paragraphs = xmlContent.split(Regex("<w:p[ >]"))
                 for (p in paragraphs) {
+                    if (builder.length > MAX_TEXT_LENGTH) break
                     val textBuilder = StringBuilder()
                     val matcher = Regex("<w:t[^>]*>(.*?)</w:t>").findAll(p)
                     for (match in matcher) {
@@ -77,11 +182,15 @@ object DocumentExtractor {
      */
     private fun extractDocBinary(inputStream: InputStream): String {
         val bytes = inputStream.readBytes()
+        if (bytes.size > 25 * 1024 * 1024) { // Limit to 25MB binary size
+            return "Belge çok büyük (Maksimum 25MB desteklenir)."
+        }
         val rawText = String(bytes, Charsets.ISO_8859_1)
         val cleanBuilder = StringBuilder()
 
         val lines = rawText.split(Regex("[\\r\\n]+"))
         for (line in lines) {
+            if (cleanBuilder.length > MAX_TEXT_LENGTH) break
             val readable = line.filter { it in ' '..'~' || it in 'Ğ'..'ğ' || it in 'Ç'..'ç' || it in 'Ş'..'ş' || it in 'Ü'..'ü' || it in 'Ö'..'ö' || it in 'İ'..'ı' }
             if (readable.length > 15) {
                 cleanBuilder.append(readable.trim()).append("\n\n")
@@ -93,20 +202,30 @@ object DocumentExtractor {
     }
 
     /**
-     * Extracts EPUB ebook text from zipped XHTML/HTML content files.
+     * Extracts EPUB ebook text from zipped XHTML/HTML content files with zip bomb and path traversal guards.
      */
     private fun extractEpub(inputStream: InputStream): String {
         val zip = ZipInputStream(inputStream)
         val builder = StringBuilder()
         var chapterCount = 1
+        var entriesCount = 0
 
         var entry = zip.nextEntry
-        while (entry != null) {
-            val name = entry.name.lowercase()
+        while (entry != null && entriesCount < MAX_ZIP_ENTRIES) {
+            entriesCount++
+            val rawName = entry.name
+            if (rawName.contains("..")) {
+                zip.closeEntry()
+                entry = zip.nextEntry
+                continue
+            }
+
+            val name = rawName.lowercase()
             if ((name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm")) && !name.contains("toc")) {
                 val text = InputStreamReader(zip, Charsets.UTF_8).readText()
                 val clean = stripHtmlTags(text)
                 if (clean.isNotBlank() && clean.length > 50) {
+                    if (builder.length + clean.length > MAX_TEXT_LENGTH) break
                     builder.append("=== BÖLÜM $chapterCount ===\n\n")
                     builder.append(clean).append("\n\n")
                     chapterCount++

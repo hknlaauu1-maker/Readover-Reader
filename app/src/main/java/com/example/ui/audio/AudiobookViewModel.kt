@@ -89,10 +89,6 @@ class AudiobookViewModel(application: Application) : AndroidViewModel(applicatio
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        viewModelScope.launch {
-            repository.checkAndSeedInitialData()
-        }
-
         // Periodically sync playback progress to Room DB
         playerEngine.onProgressUpdateListener = { currentPos, duration ->
             currentAudiobook.value?.let { book ->

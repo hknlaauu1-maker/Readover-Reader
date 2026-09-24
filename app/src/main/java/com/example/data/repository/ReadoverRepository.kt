@@ -127,6 +127,7 @@ class ReadoverRepository(
         }
 
         val textContent = com.example.util.DocumentExtractor.extractText(context, uri, fileName)
+        val embeddedCoverUrl = com.example.util.DocumentExtractor.extractEmbeddedCover(context, uri, fileName)
 
         val estimatedPages = (textContent.length / 1200).coerceAtLeast(1)
 
@@ -140,6 +141,7 @@ class ReadoverRepository(
             author = "Yerel Belge",
             format = format,
             category = "İçe Aktarılan",
+            coverImageUrl = embeddedCoverUrl,
             totalPages = estimatedPages,
             currentPage = 1,
             progressPercent = 0f,
@@ -153,15 +155,17 @@ class ReadoverRepository(
 
         val insertedId = bookDao.insertBook(newBook)
 
-        // Automatically fetch open source cover image in the background
-        repositoryScope.launch {
-            try {
-                val coverUrl = OpenCoverFetcher.fetchCoverUrl(cleanTitle, null)
-                if (coverUrl != null) {
-                    bookDao.updateCoverImageUrl(insertedId, coverUrl)
+        // If no embedded cover was found, automatically fetch open source cover image from open libraries
+        if (embeddedCoverUrl == null) {
+            repositoryScope.launch {
+                try {
+                    val coverUrl = OpenCoverFetcher.fetchCoverUrl(cleanTitle, null)
+                    if (coverUrl != null) {
+                        bookDao.updateCoverImageUrl(insertedId, coverUrl)
+                    }
+                } catch (e: Exception) {
+                    Log.e("ReadoverRepo", "Failed to auto fetch cover for book: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.e("ReadoverRepo", "Failed to auto fetch cover for book: ${e.message}")
             }
         }
 

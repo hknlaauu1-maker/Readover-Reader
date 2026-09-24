@@ -129,7 +129,8 @@ fun OpenLibraryDialog(
     isOpen: Boolean,
     onDismiss: () -> Unit,
     viewModel: LibraryViewModel,
-    onOpenDownloadedBook: (Long) -> Unit
+    onOpenDownloadedBook: (Long) -> Unit,
+    onImportLocalFile: () -> Unit
 ) {
     if (!isOpen) return
 
@@ -138,6 +139,12 @@ fun OpenLibraryDialog(
     var activeCategory by remember { mutableStateOf("Tümü") }
     var selectedLanguage by remember { mutableStateOf(I18nManager.currentLanguage) }
     var searchInput by remember { mutableStateOf(viewModel.openLibrarySearchQuery) }
+
+    LaunchedEffect(isOpen, selectedLanguage) {
+        if (isOpen) {
+            viewModel.searchOpenLibrary(searchInput, selectedLanguage.code)
+        }
+    }
 
     val sources = listOf("Tümü", "Gutenberg", "OpenLibrary", "StandardEbooks", "Wikisource")
     val languages = AppLanguage.entries
@@ -177,19 +184,19 @@ fun OpenLibraryDialog(
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = Icons.Default.Public,
+                                        imageVector = Icons.Default.MenuBook,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = appString("open_library"),
+                                        text = appString("open_book"),
                                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                                     )
                                 }
                                 Text(
-                                    text = appString("open_library_desc"),
+                                    text = "Yerel dosyalar ve açık kaynak kütüphaneler",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -214,6 +221,102 @@ fun OpenLibraryDialog(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
+                    // -------------------------------------------------------------
+                    // SECTION: LOCAL & CLOUD FILE IMPORT (Cihaz / Bulut Dosyası Aç)
+                    // -------------------------------------------------------------
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .clickable {
+                                onDismiss()
+                                onImportLocalFile()
+                            }
+                            .testTag("card_import_local_file"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.5.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(androidx.compose.foundation.shape.CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CloudUpload,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "Cihazdan veya Buluttan Dosya Seç",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.5.sp
+                                        ),
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                    )
+                                    Text(
+                                        text = "PDF, EPUB, MOBI, FB2, TXT, DOCX desteklenir",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    )
+                                }
+                            }
+
+                            Button(
+                                onClick = {
+                                    onDismiss()
+                                    onImportLocalFile()
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                modifier = Modifier.testTag("btn_import_from_dialog")
+                            ) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "Dosya Seç", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    // Section Divider
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        HorizontalDivider(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "  Açık Kaynak Eserler (${selectedLanguage.displayName})  ",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        HorizontalDivider(modifier = Modifier.weight(1f))
+                    }
+
                     // Search & Action Header (Single Row Layout)
                     Row(
                         modifier = Modifier

@@ -14,14 +14,14 @@ import androidx.core.view.WindowCompat
 import com.example.ui.settings.AppThemeMode
 
 private val LightColorScheme = lightColorScheme(
-    primary = EmeraldPrimary,
-    onPrimary = EmeraldOnPrimary,
-    primaryContainer = EmeraldPrimaryContainer,
-    onPrimaryContainer = EmeraldOnPrimaryContainer,
-    secondary = TealSecondary,
-    onSecondary = TealOnSecondary,
-    secondaryContainer = TealSecondaryContainer,
-    onSecondaryContainer = TealOnSecondaryContainer,
+    primary = GoldLightPrimary,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFF3D4),
+    onPrimaryContainer = Color(0xFF42310C),
+    secondary = NavyMedium,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFE2E8F0),
+    onSecondaryContainer = NavyDeep,
     tertiary = WarmAmberTertiary,
     background = LightBackground,
     surface = LightSurface,
@@ -32,14 +32,14 @@ private val LightColorScheme = lightColorScheme(
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary = DarkPrimary,
-    onPrimary = DarkPrimaryContainer,
+    primary = GoldDarkPrimary,
+    onPrimary = NavyDeep,
     primaryContainer = DarkPrimaryContainer,
     onPrimaryContainer = DarkOnPrimaryContainer,
-    secondary = TealSecondary,
-    onSecondary = TealOnSecondary,
-    secondaryContainer = TealSecondaryContainer,
-    onSecondaryContainer = TealOnSecondaryContainer,
+    secondary = NavyLight,
+    onSecondary = Color.White,
+    secondaryContainer = NavyMedium,
+    onSecondaryContainer = Color.White,
     tertiary = WarmAmberTertiary,
     background = DarkBackground,
     surface = DarkSurface,
