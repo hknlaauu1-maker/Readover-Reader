@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -130,7 +131,9 @@ fun OpenLibraryDialog(
     onDismiss: () -> Unit,
     viewModel: LibraryViewModel,
     onOpenDownloadedBook: (Long) -> Unit,
-    onImportLocalFile: () -> Unit
+    onImportLocalFile: () -> Unit = {},
+    onImportMultipleFiles: () -> Unit = onImportLocalFile,
+    onImportFolder: () -> Unit = onImportLocalFile
 ) {
     if (!isOpen) return
 
@@ -222,81 +225,136 @@ fun OpenLibraryDialog(
                         .padding(paddingValues)
                 ) {
                     // -------------------------------------------------------------
-                    // SECTION: LOCAL & CLOUD FILE IMPORT (Cihaz / Bulut Dosyası Aç)
+                    // SECTION: COMPACT LOCAL & CLOUD FILE IMPORT (+ ICON & FOLDER/MULTI-SELECT)
                     // -------------------------------------------------------------
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                            .clickable {
-                                onDismiss()
-                                onImportLocalFile()
-                            }
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
                             .testTag("card_import_local_file"),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                         ),
                         border = androidx.compose.foundation.BorderStroke(
-                            1.5.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
                         )
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(10.dp)
                         ) {
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(44.dp)
-                                        .clip(androidx.compose.foundation.shape.CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary),
-                                    contentAlignment = Alignment.Center
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CloudUpload,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column {
-                                    Text(
-                                        text = "Cihazdan veya Buluttan Dosya Seç",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 14.5.sp
-                                        ),
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                                    )
-                                    Text(
-                                        text = "PDF, EPUB, MOBI, FB2, TXT, DOCX desteklenir",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                    )
+                                    // Circular Icon with Plus (+) Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.CloudUpload,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        // Plus (+) badge
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .size(14.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.surface),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Add,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(10.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Cihazdan veya Buluttan Ekle",
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.5.sp
+                                            ),
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Text(
+                                            text = "PDF, EPUB, MOBI, FB2, TXT, DOCX",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
+                                        )
+                                    }
                                 }
                             }
 
-                            Button(
-                                onClick = {
-                                    onDismiss()
-                                    onImportLocalFile()
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                                modifier = Modifier.testTag("btn_import_from_dialog")
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Dual Action Buttons: "Tümünü / Çoklu Seç" and "Tüm Klasörü Ekle"
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Dosya Seç", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                                Button(
+                                    onClick = {
+                                        onDismiss()
+                                        onImportMultipleFiles()
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .testTag("btn_import_all_files")
+                                ) {
+                                    Icon(Icons.Default.LibraryAdd, contentDescription = null, modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "Tümünü / Çoklu Seç",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                FilledTonalButton(
+                                    onClick = {
+                                        onDismiss()
+                                        onImportFolder()
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(36.dp)
+                                        .testTag("btn_import_folder")
+                                ) {
+                                    Icon(Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(15.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "Tüm Klasörü Ekle",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }

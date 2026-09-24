@@ -84,7 +84,7 @@ fun LibraryScreen(
         AdManager.init(context)
     }
 
-    // File picker launcher for importing PDF, EPUB, MOBI, FB2, TXT
+    // Single File picker launcher for importing PDF, EPUB, MOBI, FB2, TXT
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -92,6 +92,37 @@ fun LibraryScreen(
             viewModel.importBookFile(uri) { newBookId ->
                 Toast.makeText(context, "Kitap eklendi ve açık kaynak kapağı taranıyor!", Toast.LENGTH_SHORT).show()
                 onOpenBook(newBookId)
+            }
+        }
+    }
+
+    // Multiple File picker launcher for selecting multiple files / Select All
+    val multipleFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris: List<Uri> ->
+        if (uris.isNotEmpty()) {
+            Toast.makeText(context, "${uris.size} dosya içe aktarılıyor...", Toast.LENGTH_SHORT).show()
+            viewModel.importMultipleBookFiles(uris) { count, lastId ->
+                Toast.makeText(context, "$count kitap başarıyla kitaplığa eklendi!", Toast.LENGTH_SHORT).show()
+                if (lastId != null && count == 1) {
+                    onOpenBook(lastId)
+                }
+            }
+        }
+    }
+
+    // Folder (Directory Tree) picker launcher for importing entire folders
+    val folderPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree()
+    ) { treeUri: Uri? ->
+        if (treeUri != null) {
+            Toast.makeText(context, "Klasör taranıyor ve kitaplar ekleniyor...", Toast.LENGTH_SHORT).show()
+            viewModel.importFolder(treeUri) { count, _ ->
+                if (count > 0) {
+                    Toast.makeText(context, "Klasörden $count kitap başarıyla kitaplığa eklendi!", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Klasörde desteklenen kitap dosyası bulunamadı.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -411,6 +442,22 @@ fun LibraryScreen(
                     "*/*"
                 )
             )
+        },
+        onImportMultipleFiles = {
+            multipleFilePickerLauncher.launch(
+                arrayOf(
+                    "application/pdf",
+                    "application/epub+zip",
+                    "application/msword",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "text/plain",
+                    "application/octet-stream",
+                    "*/*"
+                )
+            )
+        },
+        onImportFolder = {
+            folderPickerLauncher.launch(null)
         }
     )
 

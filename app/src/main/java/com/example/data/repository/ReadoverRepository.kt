@@ -172,6 +172,52 @@ class ReadoverRepository(
         insertedId
     }
 
+    suspend fun importFilesFromUris(uris: List<Uri>): List<Long> = withContext(Dispatchers.IO) {
+        val ids = mutableListOf<Long>()
+        for (uri in uris) {
+            try {
+                val id = importFileFromUri(uri)
+                ids.add(id)
+            } catch (e: Exception) {
+                Log.e("ReadoverRepo", "Error importing uri $uri: ${e.message}")
+            }
+        }
+        ids
+    }
+
+    suspend fun importFolderTree(treeUri: Uri): List<Long> = withContext(Dispatchers.IO) {
+        val ids = mutableListOf<Long>()
+        try {
+            val rootDoc = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, treeUri)
+            if (rootDoc != null && rootDoc.isDirectory) {
+                val supportedExtensions = setOf("pdf", "epub", "mobi", "fb2", "txt", "doc", "docx", "htm", "html")
+                fun traverse(doc: androidx.documentfile.provider.DocumentFile) {
+                    val files = doc.listFiles()
+                    for (file in files) {
+                        if (file.isDirectory) {
+                            traverse(file)
+                        } else if (file.isFile) {
+                            val name = file.name?.lowercase() ?: ""
+                            val ext = name.substringAfterLast('.', "")
+                            if (supportedExtensions.contains(ext)) {
+                                try {
+                                    val id = kotlinx.coroutines.runBlocking { importFileFromUri(file.uri) }
+                                    ids.add(id)
+                                } catch (e: Exception) {
+                                    Log.e("ReadoverRepo", "Failed to import folder file: ${file.name}")
+                                }
+                            }
+                        }
+                    }
+                }
+                traverse(rootDoc)
+            }
+        } catch (e: Exception) {
+            Log.e("ReadoverRepo", "Error traversing folder tree: ${e.message}")
+        }
+        ids
+    }
+
     suspend fun downloadAndInsertOpenBook(item: OpenBookItem): Long = withContext(Dispatchers.IO) {
         var textContent = item.directContent
 

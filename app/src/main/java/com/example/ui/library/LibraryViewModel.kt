@@ -145,6 +145,20 @@ class LibraryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun importMultipleBookFiles(uris: List<Uri>, onComplete: (count: Int, lastId: Long?) -> Unit) {
+        viewModelScope.launch {
+            val ids = repository.importFilesFromUris(uris)
+            onComplete(ids.size, ids.lastOrNull())
+        }
+    }
+
+    fun importFolder(treeUri: Uri, onComplete: (count: Int, lastId: Long?) -> Unit) {
+        viewModelScope.launch {
+            val ids = repository.importFolderTree(treeUri)
+            onComplete(ids.size, ids.lastOrNull())
+        }
+    }
+
     fun toggleFavorite(book: BookEntity) {
         viewModelScope.launch {
             repository.toggleFavorite(book.id, !book.isFavorite)
