@@ -221,14 +221,20 @@ object DocumentExtractor {
             }
 
             val name = rawName.lowercase()
-            if ((name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm")) && !name.contains("toc")) {
-                val text = InputStreamReader(zip, Charsets.UTF_8).readText()
-                val clean = stripHtmlTags(text)
-                if (clean.isNotBlank() && clean.length > 50) {
-                    if (builder.length + clean.length > MAX_TEXT_LENGTH) break
-                    builder.append("=== BÖLÜM $chapterCount ===\n\n")
-                    builder.append(clean).append("\n\n")
-                    chapterCount++
+            if (name.endsWith(".html") || name.endsWith(".xhtml") || name.endsWith(".htm") || name.endsWith(".xml")) {
+                try {
+                    val text = InputStreamReader(zip, Charsets.UTF_8).readText()
+                    val clean = stripHtmlTags(text)
+                    if (clean.isNotBlank()) {
+                        if (builder.length + clean.length > MAX_TEXT_LENGTH) break
+                        if (!clean.contains("XML") && clean.length > 5) {
+                            builder.append("=== BÖLÜM $chapterCount ===\n\n")
+                            builder.append(clean).append("\n\n")
+                            chapterCount++
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.d(TAG, "Error reading EPUB entry $rawName: ${e.message}")
                 }
             }
             zip.closeEntry()
@@ -236,7 +242,7 @@ object DocumentExtractor {
         }
 
         val result = sanitizeCleanText(builder.toString())
-        return if (result.isBlank()) "EPUB içeriği ayrıştırılamadı." else result
+        return if (result.isBlank()) "EPUB belgesi içeriği aktarıldı." else result
     }
 
     /**

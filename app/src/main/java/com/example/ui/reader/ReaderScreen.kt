@@ -1340,8 +1340,15 @@ fun PdfPageView(
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val uri = android.net.Uri.parse(fileUriString)
-                context.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
-                    android.graphics.pdf.PdfRenderer(pfd).use { renderer ->
+                val pfd = if (uri.scheme == "file") {
+                    val path = uri.path ?: ""
+                    val file = java.io.File(path)
+                    if (file.exists()) android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY) else null
+                } else {
+                    context.contentResolver.openFileDescriptor(uri, "r")
+                }
+                pfd?.use { descriptor ->
+                    android.graphics.pdf.PdfRenderer(descriptor).use { renderer ->
                         if (pageIndex in 0 until renderer.pageCount) {
                             renderer.openPage(pageIndex).use { page ->
                                 val width = (page.width * 2.2).toInt().coerceAtLeast(100)

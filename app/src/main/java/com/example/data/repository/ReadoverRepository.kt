@@ -102,6 +102,14 @@ class ReadoverRepository(
         var fileName = "Bilinmeyen Belge"
         var fileSize = 0L
 
+        // Attempt persistable permission
+        try {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: Exception) {}
+
         context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -126,10 +134,40 @@ class ReadoverRepository(
             else -> "TXT"
         }
 
-        val textContent = com.example.util.DocumentExtractor.extractText(context, uri, fileName)
-        val embeddedCoverUrl = com.example.util.DocumentExtractor.extractEmbeddedCover(context, uri, fileName)
+        // Save local copy to app internal storage for permanent offline access
+        val booksDir = java.io.File(context.filesDir, "imported_books").apply { if (!exists()) mkdirs() }
+        val safeFileName = "book_${System.currentTimeMillis()}_${(1000..9999).random()}.${extension.lowercase()}"
+        val localFile = java.io.File(booksDir, safeFileName)
 
-        val estimatedPages = (textContent.length / 1200).coerceAtLeast(1)
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                java.io.FileOutputStream(localFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ReadoverRepo", "Error copying imported file locally: ${e.message}")
+        }
+
+        val effectiveUri = if (localFile.exists() && localFile.length() > 0) Uri.fromFile(localFile) else uri
+
+        val textContent = com.example.util.DocumentExtractor.extractText(context, effectiveUri, fileName)
+        val embeddedCoverUrl = com.example.util.DocumentExtractor.extractEmbeddedCover(context, effectiveUri, fileName)
+
+        var pdfTotalPages = 0
+        if (format == "PDF" && localFile.exists()) {
+            try {
+                android.os.ParcelFileDescriptor.open(localFile, android.os.ParcelFileDescriptor.MODE_READ_ONLY)?.use { pfd ->
+                    android.graphics.pdf.PdfRenderer(pfd).use { renderer ->
+                        pdfTotalPages = renderer.pageCount
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("ReadoverRepo", "PdfRenderer page count failed: ${e.message}")
+            }
+        }
+
+        val estimatedPages = if (pdfTotalPages > 0) pdfTotalPages else (textContent.length / 1100).coerceAtLeast(1)
 
         val cleanTitle = fileName.substringBeforeLast('.')
             .replace('_', ' ')
@@ -138,24 +176,24 @@ class ReadoverRepository(
 
         val newBook = BookEntity(
             title = cleanTitle.ifBlank { "İçe Aktarılan Belge" },
-            author = "Yerel Belge",
+            author = "Yerel Kitap",
             format = format,
-            category = "İçe Aktarılan",
+            category = "Kitaplarım",
             coverImageUrl = embeddedCoverUrl,
             totalPages = estimatedPages,
             currentPage = 1,
             progressPercent = 0f,
             lastReadTimestamp = System.currentTimeMillis(),
             isFavorite = false,
-            fileSizeBytes = if (fileSize > 0) fileSize else textContent.length.toLong(),
+            fileSizeBytes = if (localFile.exists()) localFile.length() else (if (fileSize > 0) fileSize else textContent.length.toLong()),
             coverColorHex = 0xFF0D9488,
             content = textContent,
-            fileUri = uri.toString()
+            fileUri = effectiveUri.toString()
         )
 
         val insertedId = bookDao.insertBook(newBook)
 
-        // If no embedded cover was found, automatically fetch open source cover image from open libraries
+        // If no embedded cover was found, fetch open source cover image in background
         if (embeddedCoverUrl == null) {
             repositoryScope.launch {
                 try {
@@ -191,26 +229,33 @@ class ReadoverRepository(
             val rootDoc = androidx.documentfile.provider.DocumentFile.fromTreeUri(context, treeUri)
             if (rootDoc != null && rootDoc.isDirectory) {
                 val supportedExtensions = setOf("pdf", "epub", "mobi", "fb2", "txt", "doc", "docx", "htm", "html")
-                fun traverse(doc: androidx.documentfile.provider.DocumentFile) {
+                val filesToImport = mutableListOf<Uri>()
+
+                fun collectFiles(doc: androidx.documentfile.provider.DocumentFile) {
                     val files = doc.listFiles()
                     for (file in files) {
                         if (file.isDirectory) {
-                            traverse(file)
+                            collectFiles(file)
                         } else if (file.isFile) {
                             val name = file.name?.lowercase() ?: ""
                             val ext = name.substringAfterLast('.', "")
                             if (supportedExtensions.contains(ext)) {
-                                try {
-                                    val id = kotlinx.coroutines.runBlocking { importFileFromUri(file.uri) }
-                                    ids.add(id)
-                                } catch (e: Exception) {
-                                    Log.e("ReadoverRepo", "Failed to import folder file: ${file.name}")
-                                }
+                                filesToImport.add(file.uri)
                             }
                         }
                     }
                 }
-                traverse(rootDoc)
+
+                collectFiles(rootDoc)
+
+                for (fUri in filesToImport) {
+                    try {
+                        val id = importFileFromUri(fUri)
+                        ids.add(id)
+                    } catch (e: Exception) {
+                        Log.e("ReadoverRepo", "Failed to import file $fUri: ${e.message}")
+                    }
+                }
             }
         } catch (e: Exception) {
             Log.e("ReadoverRepo", "Error traversing folder tree: ${e.message}")
