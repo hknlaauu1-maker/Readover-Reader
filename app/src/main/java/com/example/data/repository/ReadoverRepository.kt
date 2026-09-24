@@ -192,21 +192,6 @@ class ReadoverRepository(
         )
 
         val insertedId = bookDao.insertBook(newBook)
-
-        // If no embedded cover was found, fetch open source cover image in background
-        if (embeddedCoverUrl == null) {
-            repositoryScope.launch {
-                try {
-                    val coverUrl = OpenCoverFetcher.fetchCoverUrl(cleanTitle, null)
-                    if (coverUrl != null) {
-                        bookDao.updateCoverImageUrl(insertedId, coverUrl)
-                    }
-                } catch (e: Exception) {
-                    Log.e("ReadoverRepo", "Failed to auto fetch cover for book: ${e.message}")
-                }
-            }
-        }
-
         insertedId
     }
 

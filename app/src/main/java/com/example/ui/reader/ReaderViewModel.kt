@@ -71,13 +71,46 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     var rsvpWpm by mutableIntStateOf(300)
     private var rsvpJob: Job? = null
 
+    private fun getPdfPageCount(fileUriString: String?): Int {
+        if (fileUriString.isNullOrBlank()) return 0
+        return try {
+            val uri = android.net.Uri.parse(fileUriString)
+            val context = getApplication<Application>()
+            val pfd = if (uri.scheme == "file") {
+                val path = uri.path ?: ""
+                val file = java.io.File(path)
+                if (file.exists()) android.os.ParcelFileDescriptor.open(file, android.os.ParcelFileDescriptor.MODE_READ_ONLY) else null
+            } else {
+                context.contentResolver.openFileDescriptor(uri, "r")
+            }
+            pfd?.use { descriptor ->
+                android.graphics.pdf.PdfRenderer(descriptor).use { renderer ->
+                    renderer.pageCount
+                }
+            } ?: 0
+        } catch (e: Exception) {
+            android.util.Log.e("ReaderViewModel", "Error getting PDF real page count: ${e.message}")
+            0
+        }
+    }
+
     fun loadBook(bookId: Long) {
         viewModelScope.launch {
             val book = repository.getBookByIdSync(bookId)
             _currentBook.value = book
             if (book != null) {
-                // Paginate content
-                val parsed = BookReaderEngine.paginate(book.content)
+                var parsed = BookReaderEngine.paginate(book.content)
+
+                // If PDF book, derive pagination from real PDF file page count
+                if (book.format.equals("PDF", ignoreCase = true) && !book.fileUri.isNullOrBlank()) {
+                    val realPdfPages = getPdfPageCount(book.fileUri)
+                    if (realPdfPages > 0) {
+                        val pdfPageList = List(realPdfPages) { idx -> "PDF Sayfa ${idx + 1}" }
+                        val chaptersList = listOf(ChapterInfo(0, "Tüm Belge", 1))
+                        parsed = BookPagination(pages = pdfPageList, chapters = chaptersList)
+                    }
+                }
+
                 pagination = parsed
 
                 // Restore previous page (1-based to 0-based)

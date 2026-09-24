@@ -308,17 +308,16 @@ fun BookListItem(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Gold Bold Price/Progress text (matching the bottom style in Adsız1.png)
-                val isTurkish = book.category.contains("Türk", ignoreCase = true) || book.author.contains("Atatürk")
                 val formattedProgress = if (book.progressPercent > 0.01f) {
                     "%${(book.progressPercent * 100).toInt()} okundu"
                 } else {
                     "${book.totalPages} sayfa"
                 }
                 Text(
-                    text = if (isTurkish) "Ücretsiz • $formattedProgress" else "$${19 + (book.id % 12)}.90 • $formattedProgress",
+                    text = "${book.category} • $formattedProgress",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
                 )
