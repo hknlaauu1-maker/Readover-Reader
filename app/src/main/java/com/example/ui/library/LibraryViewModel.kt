@@ -1,0 +1,214 @@
+package com.example.ui.library
+
+import android.app.Application
+import android.net.Uri
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.database.ReadoverDatabase
+import com.example.data.model.BookEntity
+import com.example.data.model.BookmarkEntity
+import com.example.data.model.DiscoveredFile
+import com.example.data.openlibrary.OpenBookItem
+import com.example.data.openlibrary.OpenLibraryService
+import com.example.data.repository.ReadoverRepository
+import com.example.util.i18n.AppLanguage
+import com.example.util.i18n.I18nManager
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+
+enum class BookSortOrder(val label: String) {
+    LAST_READ("Son Okunan"),
+    TITLE("İsim (A-Z)"),
+    PROGRESS("İlerleme")
+}
+
+class LibraryViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val database = ReadoverDatabase.getDatabase(application)
+    private val repository = ReadoverRepository(
+        database.bookDao(),
+        database.bookmarkDao(),
+        database.audiobookDao(),
+        application
+    )
+
+    var selectedTab by mutableIntStateOf(0) // 0: Kitaplık, 1: S. Kitap, 2: Son Okunan, 3: Yer İmleri, 4: İstatistik
+    var searchQuery by mutableStateOf("")
+    var selectedFormatFilter by mutableStateOf("TÜMÜ")
+    var sortOrder by mutableStateOf(BookSortOrder.LAST_READ)
+    var isGridView by mutableStateOf(true)
+
+    // Universal Import & Scan States
+    var isImportBottomSheetOpen by mutableStateOf(false)
+    var isScanResultsDialogOpen by mutableStateOf(false)
+    var isScanningLocalDisk by mutableStateOf(false)
+    var discoveredFiles by mutableStateOf<List<DiscoveredFile>>(emptyList())
+
+    // Open Library State
+    var isOpenLibraryDialogOpen by mutableStateOf(false)
+    var openLibrarySearchQuery by mutableStateOf("")
+    var openLibraryCategoryFilter by mutableStateOf("Tümü")
+    var isOpenLibrarySearching by mutableStateOf(false)
+    var openLibraryBooks by mutableStateOf<List<OpenBookItem>>(emptyList())
+    var downloadingBookIds by mutableStateOf<Set<String>>(emptySet())
+    var downloadedBookIds by mutableStateOf<Set<String>>(emptySet())
+
+    init {
+        searchOpenLibrary("")
+    }
+
+    fun scanDirectory(treeUri: Uri) {
+        isScanResultsDialogOpen = true
+        isScanningLocalDisk = true
+        discoveredFiles = emptyList()
+
+        viewModelScope.launch {
+            try {
+                val results = repository.scanDirectoryTree(treeUri)
+                discoveredFiles = results
+            } catch (e: Exception) {
+                discoveredFiles = emptyList()
+            } finally {
+                isScanningLocalDisk = false
+            }
+        }
+    }
+
+    fun confirmBatchImport(selectedFiles: List<DiscoveredFile>, onComplete: (booksCount: Int, audioCount: Int) -> Unit) {
+        viewModelScope.launch {
+            val (booksCount, audioCount) = repository.batchImportDiscoveredFiles(selectedFiles)
+            isScanResultsDialogOpen = false
+            onComplete(booksCount, audioCount)
+        }
+    }
+
+    fun searchOpenLibrary(query: String, langCode: String = I18nManager.currentLanguage.code) {
+        openLibrarySearchQuery = query
+        viewModelScope.launch {
+            isOpenLibrarySearching = true
+            try {
+                val results = OpenLibraryService.searchOpenBooks(query, langCode)
+                openLibraryBooks = results
+            } catch (e: Exception) {
+                try {
+                    openLibraryBooks = OpenLibraryService.searchOpenBooks("", langCode)
+                } catch (innerEx: Exception) {
+                    openLibraryBooks = OpenLibraryService.curatedCatalog
+                }
+            } finally {
+                isOpenLibrarySearching = false
+            }
+        }
+    }
+
+    fun downloadAndAddOpenBook(item: OpenBookItem, onDone: (Long) -> Unit) {
+        if (downloadingBookIds.contains(item.id)) return
+        downloadingBookIds = downloadingBookIds + item.id
+
+        viewModelScope.launch {
+            try {
+                val newBookId = repository.downloadAndInsertOpenBook(item)
+                downloadedBookIds = downloadedBookIds + item.id
+                onDone(newBookId)
+            } catch (e: Exception) {
+                // handle error
+            } finally {
+                downloadingBookIds = downloadingBookIds - item.id
+            }
+        }
+    }
+
+    val allBooks: StateFlow<List<BookEntity>> = repository.allBooks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val recentBooks: StateFlow<List<BookEntity>> = repository.recentBooks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val favoriteBooks: StateFlow<List<BookEntity>> = repository.favoriteBooks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allBookmarks: StateFlow<List<BookmarkEntity>> = repository.allBookmarks
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Filtered books flow
+    val filteredBooks: StateFlow<List<BookEntity>> = allBooks.map { books ->
+        var list = books
+
+        // Format filter
+        if (selectedFormatFilter != "TÜMÜ") {
+            if (selectedFormatFilter == "DİĞER") {
+                list = list.filter { 
+                    !it.format.equals("PDF", ignoreCase = true) && 
+                    !it.format.equals("EPUB", ignoreCase = true) && 
+                    !it.format.equals("MOBI", ignoreCase = true) 
+                }
+            } else {
+                list = list.filter { it.format.equals(selectedFormatFilter, ignoreCase = true) }
+            }
+        }
+
+        // Search query
+        if (searchQuery.isNotBlank()) {
+            val q = searchQuery.trim().lowercase()
+            list = list.filter {
+                it.title.lowercase().contains(q) ||
+                it.author.lowercase().contains(q) ||
+                it.category.lowercase().contains(q)
+            }
+        }
+
+        // Sorting
+        when (sortOrder) {
+            BookSortOrder.LAST_READ -> list.sortedByDescending { it.lastReadTimestamp }
+            BookSortOrder.TITLE -> list.sortedBy { it.title.lowercase() }
+            BookSortOrder.PROGRESS -> list.sortedByDescending { it.progressPercent }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun importBookFile(uri: Uri, onComplete: (Long) -> Unit) {
+        viewModelScope.launch {
+            val id = repository.importFileFromUri(uri)
+            onComplete(id)
+        }
+    }
+
+    fun importMultipleBookFiles(uris: List<Uri>, onComplete: (count: Int, lastId: Long?) -> Unit) {
+        viewModelScope.launch {
+            val ids = repository.importFilesFromUris(uris)
+            onComplete(ids.size, ids.lastOrNull())
+        }
+    }
+
+    fun importFolder(treeUri: Uri, onComplete: (count: Int, lastId: Long?) -> Unit) {
+        viewModelScope.launch {
+            val ids = repository.importFolderTree(treeUri)
+            onComplete(ids.size, ids.lastOrNull())
+        }
+    }
+
+    fun toggleFavorite(book: BookEntity) {
+        viewModelScope.launch {
+            repository.toggleFavorite(book.id, !book.isFavorite)
+        }
+    }
+
+    fun deleteBook(book: BookEntity) {
+        viewModelScope.launch {
+            repository.deleteBook(book)
+        }
+    }
+
+    fun deleteBookmark(bookmark: BookmarkEntity) {
+        viewModelScope.launch {
+            repository.deleteBookmark(bookmark)
+        }
+    }
+
+    fun fetchAndApplyCoverForBook(book: BookEntity) {
+        // No-op: Open-source cover fetching has been disabled per user specification
+    }
+}
