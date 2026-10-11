@@ -108,7 +108,9 @@ fun ReaderScreen(
     val progressPercent = ((currentPageNum.toFloat() / totalPages.toFloat()) * 100).toInt()
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         containerColor = currentTheme.backgroundColor,
         topBar = {
             AnimatedVisibility(

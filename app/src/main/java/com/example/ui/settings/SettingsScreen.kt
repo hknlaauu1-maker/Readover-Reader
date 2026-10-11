@@ -62,6 +62,9 @@ fun SettingsScreen(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         topBar = {
             TopAppBar(
                 title = {

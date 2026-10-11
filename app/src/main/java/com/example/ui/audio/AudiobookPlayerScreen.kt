@@ -102,18 +102,25 @@ fun AudiobookPlayerScreen(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         topBar = {
             TopAppBar(
                 title = {
                     Column {
                         Text(
                             text = "Sesli Kitap Player",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = if (isPlaying) "Şu an Çalıyor" else "Readover Audio Studio",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 },

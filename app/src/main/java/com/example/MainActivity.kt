@@ -51,6 +51,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        // Hide system bars for true immersive fullscreen mode (sanal tuşlar ve durum çubuğu gizlenir)
+        val windowInsetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+
         // Initialize persistent stats manager
         StatsManager.init(this)
 

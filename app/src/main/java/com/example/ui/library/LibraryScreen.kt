@@ -127,6 +127,9 @@ fun LibraryScreen(
     // If "S. Kitap" tab is active (index 1), display the full Audiobook Player Screen
     if (viewModel.selectedTab == 1) {
         Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
             bottomBar = {
                 ReadoverBottomBar(
                     selectedTab = viewModel.selectedTab,
@@ -149,6 +152,9 @@ fun LibraryScreen(
     // If "Ayarlar" tab is active (index 4), display the Settings & Stats Screen
     if (viewModel.selectedTab == 4) {
         Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
             bottomBar = {
                 ReadoverBottomBar(
                     selectedTab = viewModel.selectedTab,
@@ -169,6 +175,9 @@ fun LibraryScreen(
     }
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
         topBar = {
             Column(
                 modifier = Modifier
@@ -200,34 +209,19 @@ fun LibraryScreen(
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = appString("app_title"),
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        letterSpacing = (-0.5).sp
-                                    )
-                                )
-                                Text(
-                                    text = appString("app_subtitle"),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                            Text(
+                                text = appString("app_title"),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.5).sp
+                                ),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     },
                     actions = {
-                        // Universal Import Button (Diski Tara / Dosya Ekle)
-                        IconButton(
-                            onClick = { viewModel.isImportBottomSheetOpen = true },
-                            modifier = Modifier.testTag("topbar_import_btn")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.AddCircleOutline,
-                                contentDescription = "Dosya / Disk Tara",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
+
 
                         // Quick Dark Mode Toggle Button
                         val isDark = when (settingsViewModel.appThemeMode) {
